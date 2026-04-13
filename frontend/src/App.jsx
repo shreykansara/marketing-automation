@@ -92,9 +92,11 @@ function App() {
                   <thead>
                     <tr>
                       <th>COMPANY</th>
+                      <th>PRIORITY</th>
                       <th>STAGE</th>
                       <th>VALUE</th>
                       <th>STATUS</th>
+                      <th>RISK REASON</th>
                       <th>LAST ACTIVITY</th>
                     </tr>
                   </thead>
@@ -109,7 +111,7 @@ function App() {
                     ))}
                     {deals.length === 0 && (
                       <tr>
-                        <td colSpan="5" className="empty-state" style={{ padding: '2rem' }}>
+                        <td colSpan="7" className="empty-state" style={{ padding: '2rem' }}>
                           No deals found in pipeline.
                         </td>
                       </tr>

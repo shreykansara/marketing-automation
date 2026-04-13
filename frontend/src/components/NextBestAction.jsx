@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Sparkles, Send, CheckCircle } from 'lucide-react';
+import { Sparkles, Send, CheckCircle, AlertTriangle, Lightbulb, Zap } from 'lucide-react';
 
 const NextBestAction = ({ deal, onActionTriggered }) => {
-  const [loadingAction, setLoadingAction] = useState(null);
+  const [loadingAction, setLoadingAction] = useState(false);
 
   if (!deal) {
     return (
@@ -13,15 +13,15 @@ const NextBestAction = ({ deal, onActionTriggered }) => {
     );
   }
 
-  const handleTriggerAction = async (action, idx) => {
-    setLoadingAction(idx);
+  const handleTriggerAction = async () => {
+    setLoadingAction(true);
     try {
       const response = await fetch(`http://localhost:8000/api/deals/${deal.id}/action`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action_type: action.type,
-          stakeholder_name: action.stakeholder_name || null
+          action_type: "fallback", // Generic logic ping to mitigate risk via activity trace in MVP
+          stakeholder_name: null
         })
       });
       const data = await response.json();
@@ -31,63 +31,65 @@ const NextBestAction = ({ deal, onActionTriggered }) => {
     } catch (e) {
       console.error(e);
     }
-    setLoadingAction(null);
+    setLoadingAction(false);
   };
 
   return (
     <div className="action-panel">
       <div className="company-info" style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '1rem' }}>
         <h3 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>{deal.company}</h3>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Stage: <strong>{deal.stage}</strong> | Value: <strong>${deal.value.toLocaleString()}</strong></p>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+          Stage: <strong>{deal.stage}</strong> | Value: <strong>${deal.value ? deal.value.toLocaleString() : '0'}</strong>
+          <br/>
+          Activation Step: <strong style={{ color: "var(--brand-primary)", marginTop: '4px', display: 'inline-block' }}>{deal.activation_step || "Not Started"}</strong>
+        </p>
       </div>
       
       <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-        <Sparkles size={18} color="var(--brand-primary)" />
-        Recommended Actions
+        <Zap size={18} color="var(--brand-primary)" />
+        AI Intelligence Panel
       </h4>
 
-      {deal.next_actions && deal.next_actions.length > 0 ? (
-        deal.next_actions.map((action, idx) => (
-          <div key={idx} className="action-card">
-            <div className="action-header">
-              {action.type === 'follow_up' && "Follow-up Required"}
-              {action.type === 'send_docs' && "Integration Docs Pending"}
-              {action.type === 'schedule_call' && "Compliance Review"}
-              {action.type === 'outreach' && "Initial Outreach"}
-              {action.type === 'identify_stakeholder' && "Stakeholder Missing"}
-              {action.type === 'monitor' && "On Track"}
-            </div>
-            <p className="action-desc">{action.message}</p>
-            
-            {action.type !== 'monitor' && action.type !== 'identify_stakeholder' && (
-              <button 
-                className="btn btn-primary"
-                onClick={() => handleTriggerAction(action, idx)}
-                disabled={loadingAction === idx}
-              >
-                {loadingAction === idx ? (
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <div className="loader" style={{ width: '14px', height: '14px', borderWidth: '2px' }}></div>
-                    Processing...
-                  </span>
-                ) : (
-                  <>
-                    <Send size={14} /> Simulate Action
-                  </>
-                )}
-              </button>
-            )}
-            {(action.type === 'monitor' || action.type === 'identify_stakeholder') && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                <CheckCircle size={14} color="var(--status-active)" /> 
-                {action.type === 'identify_stakeholder' ? "Manual Action Required" : "System Monitoring"}
-              </div>
-            )}
+      <div className="action-card" style={{ marginBottom: '1.5rem' }}>
+        <div style={{ marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: deal.status === "Active" ? 'var(--status-active)' : 'var(--status-risk)', fontWeight: 'bold', marginBottom: '0.25rem' }}>
+            <AlertTriangle size={16} /> Problem Identified
           </div>
-        ))
-      ) : (
-        <p className="action-desc">No specific actions recommended at this stage.</p>
-      )}
+          <p style={{ color: 'var(--text-main)', fontSize: '0.95rem', marginLeft: '1.5rem' }}>
+            {deal.risk_reason || "No immediate risk factors detected."}
+          </p>
+        </div>
+
+        <div style={{ marginBottom: '1.25rem', padding: '1rem', backgroundColor: '#f0f9ff', borderRadius: '8px', border: '1px solid #bae6fd' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#0369a1', fontWeight: 'bold', marginBottom: '0.5rem' }}>
+            <Lightbulb size={16} /> Recommended Action
+          </div>
+          <p style={{ color: '#0c4a6e', fontSize: '1rem', fontWeight: '500', marginLeft: '1.5rem', marginBottom: '0.5rem' }}>
+            {deal.next_action || "Monitor Deal"}
+          </p>
+          <div style={{ marginLeft: '1.5rem', fontSize: '0.8rem', color: '#0ea5e9', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <Sparkles size={12} /> Confidence Score: <strong>{deal.action_confidence ? (deal.action_confidence * 100).toFixed(0) : 0}%</strong>
+          </div>
+        </div>
+
+        <button 
+          className="btn btn-primary"
+          onClick={handleTriggerAction}
+          disabled={loadingAction || (!deal.next_action || deal.next_action.includes("Monitor"))}
+          style={{ width: '100%', justifyContent: 'center' }}
+        >
+          {loadingAction ? (
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div className="loader" style={{ width: '14px', height: '14px', borderWidth: '2px' }}></div>
+              Processing...
+            </span>
+          ) : (
+            <>
+              <Send size={14} /> Simulate Action
+            </>
+          )}
+        </button>
+      </div>
 
       {deal.stakeholders && (
         <div style={{ marginTop: '2rem' }}>
@@ -100,9 +102,9 @@ const NextBestAction = ({ deal, onActionTriggered }) => {
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{s.role}</span>
                 </div>
                 <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                  <span>Contacted: {s.contacted ? 'Yes' : 'No'}</span>
-                  <span>Responded: {s.responded ? 'Yes' : 'No'}</span>
-                  <span>Intent: {s.intent_score}%</span>
+                  <span style={{ color: s.contacted ? 'var(--status-active)' : 'var(--text-secondary)' }}>Contacted: {s.contacted ? 'Yes' : 'No'}</span>
+                  <span style={{ color: s.responded ? 'var(--status-active)' : (!s.contacted ? 'var(--text-secondary)' : 'var(--status-risk)') }}>Responded: {s.responded ? 'Yes' : 'No'}</span>
+                  {s.intent_score !== undefined && <span>Intent: {s.intent_score}%</span>}
                 </div>
               </div>
             ))}
