@@ -14,64 +14,120 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-def evaluate_stall_risk(deal: Dict[str, Any]) -> str:
+def evaluate_deal(deal: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Rule-based Stall Detection System
-    If no activity for 7 days -> 'Stalled'
-    If no response from a contacted stakeholder -> 'At Risk'
-    Else -> 'Active'
+    Unified evaluation pipeline for deal health, activation logic, and actions.
     """
+    status = "Active"
+    risk_reason = "No issues detected"
+    next_action_str = "Monitor deal (no action needed)"
+    
+    # Generic Activity Tracking
+    days_since_activity = 0
     try:
         last_activity = datetime.fromisoformat(deal["last_activity"])
         now = datetime.now(last_activity.tzinfo)
-        if (now - last_activity).days >= 7:
-            return "Stalled"
+        days_since_activity = (now - last_activity).days
     except Exception:
         pass
-    
-    for stakeholder in deal.get("stakeholders", []):
-        if stakeholder["contacted"] and not stakeholder["responded"]:
-            return "At Risk"
-            
-    return "Active"
+        
+    # Unresponsive stakeholder in general
+    unresponsive_role = None
+    for s in deal.get("stakeholders", []):
+        if s.get("contacted") and not s.get("responded"):
+            unresponsive_role = s["role"]
+            break
 
-def determine_next_action(deal: Dict[str, Any]) -> List[Dict[str, str]]:
-    """
-    Next Best Action Engine
-    """
-    actions = []
+    # Activation Logic for Signed Deals
+    is_signed = deal.get("stage") == "Signed"
+    activation_bottleneck = False
+
+    if is_signed:
+        if "activation_step" not in deal:
+            deal["activation_step"] = "API Shared"
+        if "activation_last_updated" not in deal:
+            deal["activation_last_updated"] = deal["last_activity"]
+
+        activation_step = deal["activation_step"]
+        
+        activation_days = 0
+        try:
+            act_updated = datetime.fromisoformat(deal["activation_last_updated"])
+            now_act = datetime.now(act_updated.tzinfo)
+            activation_days = (now_act - act_updated).days
+        except Exception:
+            pass
+
+        if activation_step != "Live":
+            # Map responsible roles
+            responsible_roles = []
+            if activation_step == "API Shared":
+                responsible_roles = ["Business Head", "Integration Manager"]
+            elif activation_step in ["Sandbox", "Integration"]:
+                responsible_roles = ["CTO"]
+            elif activation_step == "Testing":
+                responsible_roles = ["CTO", "Compliance Officer"]
+
+            # Check for stakeholder bottleneck specific to this activation step
+            bottleneck_role = None
+            for role in responsible_roles:
+                for s in deal.get("stakeholders", []):
+                    if s.get("role") == role and s.get("contacted") and not s.get("responded"):
+                        bottleneck_role = role
+                        break
+                if bottleneck_role:
+                    break
+
+            if bottleneck_role:
+                status = "At Risk"
+                risk_reason = f"{activation_step} delayed due to {bottleneck_role} inactivity ({activation_days} days)"
+                unresponsive_role = bottleneck_role  # Focus next_action on this bottleneck role
+                activation_bottleneck = True
+            elif activation_days > 3:
+                status = "Stalled"
+                risk_reason = f"{activation_step} delayed due to inactivity ({activation_days} days)"
+                activation_bottleneck = True
+
+    # Generic Stall/Risk Logic (only if activation didn't flag a bottleneck)
+    if not activation_bottleneck:
+        if days_since_activity >= 5:
+            status = "Stalled"
+            if unresponsive_role:
+                risk_reason = f"{unresponsive_role} not responding for {days_since_activity} days"
+            else:
+                risk_reason = f"No activity in {days_since_activity} days"
+        elif unresponsive_role:
+            status = "At Risk"
+            risk_reason = f"{unresponsive_role} not responding"
+            
+    # Next Action Logic
+    has_compliance = any(s.get("role") == "Compliance Officer" for s in deal.get("stakeholders", []))
+    compliance_needs_contact = any(s.get("role") == "Compliance Officer" and not s.get("contacted") for s in deal.get("stakeholders", []))
     
-    if deal["stage"] == "Signed":
-        has_integration_manager = any(s["role"] == "Integration Manager" for s in deal["stakeholders"])
-        if not has_integration_manager:
-            actions.append({"type": "identify_stakeholder", "message": "Identify Integration Manager to start technical kickoff."})
+    if unresponsive_role == "CTO":
+        next_action_str = "Follow up with CTO"
+    elif not has_compliance or compliance_needs_contact:
+        next_action_str = "Schedule compliance call"
+    elif activation_bottleneck:
+        if unresponsive_role:
+            next_action_str = f"Follow up with {unresponsive_role}"
         else:
-            actions.append({"type": "send_docs", "message": "Send sandbox access and integration docs."})
-            
-    # Check for unresponsive stakeholders
-    for s in deal["stakeholders"]:
-        if s["contacted"] and not s["responded"]:
-            actions.append({"type": "follow_up", "message": f"Follow up with {s['role']} ({s['name']}) - no response.", "stakeholder_name": s["name"], "role": s["role"]})
-            
-    # Check if newly in Negotiation
-    if deal["stage"] == "Negotiation":
-        has_compliance = any(s["role"] == "Compliance Officer" for s in deal["stakeholders"])
-        if not has_compliance:
-            actions.append({"type": "schedule_call", "message": "Schedule a compliance review block."})
-            
-    if not actions:
-        if deal["stage"] == "Lead":
-            actions.append({"type": "outreach", "message": "Send initial value proposition to Business Head."})
-        else:
-            actions.append({"type": "monitor", "message": "Engagement is healthy. No immediate action required."})
-            
-    return actions
+            next_action_str = "Send API / integration docs"
+    elif unresponsive_role:
+        next_action_str = f"Follow up with {unresponsive_role}"
+    elif status == "Stalled":
+        next_action_str = "Follow up on deal"
+        
+    deal["status"] = status
+    deal["risk_reason"] = risk_reason
+    deal["next_action"] = next_action_str
+    
+    return deal
 
 @app.get("/api/deals")
 def get_deals():
     for deal in deals:
-        deal["status"] = evaluate_stall_risk(deal)
-        deal["next_actions"] = determine_next_action(deal)
+        evaluate_deal(deal)
     return {"data": deals}
 
 @app.get("/api/deals/{deal_id}/actions")
@@ -79,9 +135,8 @@ def get_deal_actions(deal_id: str):
     deal = next((d for d in deals if d["id"] == deal_id), None)
     if not deal:
         raise HTTPException(status_code=404, detail="Deal not found")
-    deal["status"] = evaluate_stall_risk(deal)
-    actions = determine_next_action(deal)
-    return {"data": actions}
+    evaluate_deal(deal)
+    return {"data": deal}
 
 @app.post("/api/deals/{deal_id}/action")
 def trigger_action(deal_id: str, payload: dict):
