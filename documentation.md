@@ -1,6 +1,6 @@
 # Technical Documentation: Blostem Pipeline & Activation Intelligence MVP
 
-This document provides a line-by-line technical breakdown and behavioral summary of each module within the Blostem Pipeline & Activation Intelligence system.
+This document provides a line-by-line technical breakdown and behavioral summary of each module within the newly upgraded Blostem Pipeline & Activation Intelligence platform.
 
 ## Table of Contents
 1. [Backend Modules](#backend-modules)
@@ -16,107 +16,69 @@ This document provides a line-by-line technical breakdown and behavioral summary
 
 ## Backend Modules
 
-The backend is built with FastAPI (Python) to provide high-performance, lightweight API endpoints.
+The backend is built with FastAPI (Python), housing a rigid, deterministic algorithmic intelligence routing engine that simulates an advanced decision-support API.
 
 ### `mock_data.py`
 **Purpose:** Simulates a live production database for the MVP. It defines the mock pipeline of prospects, stakeholders, and outreach templates.
 
-* `get_current_time()`: Helper function returning a UTC-aware datetime, used to generate dynamic "last activity" timestamps so the stale logic doesn't break over time.
-* `deals`: A list of dictionaries. Each dictionary represents a B2B deal and contains:
-  * `id`: Unique deal identifier.
-  * `company`: Name of the prospect.
-  * `stage`: Current pipeline stage (Lead, Negotiation, Signed, Activation, Live).
-  * `status`: Initializes as "Active", later mutated by the intelligence engine.
-  * `last_activity`: ISO formatted timestamp representing the last time Blostem interacted with the prospect.
-  * `value`: Estimated deal value in USD.
-  * `stakeholders`: A nested list of key contacts at the company. Each contact holds flags like `contacted` (boolean), `responded` (boolean), and `intent_score` (integer).
-* `templates`: A dictionary storing the hardcoded messaging texts tailored for specific roles (e.g., CTO, Compliance Officer).
+* `get_current_time()`: Helper function returning a UTC-aware datetime, used to generate dynamic "last activity" timestamps ensuring time-based intelligence triggers organically.
+* `deals`: A list of dictionaries representing B2B deals holding core fields:
+  * `id`, `company`, `stage`, `status`
+  * `last_activity`: ISO formatted timestamp.
+  * `value`: Estimated deal financial value.
+  * `activation_step`: Current step exclusively tracked once the deal transitions to "Signed".
+  * `stakeholders`: List containing specific points of contact mapped to role, response boolean logic, and engagement statistics.
+* `templates`: Stored outreach strings utilized selectively when mitigating risks.
 
 ### `main.py`
-**Purpose:** Houses the FastAPI server, the Intelligence Rules Engine, and the REST endpoints.
+**Purpose:** The central logic host holding the algorithmic evaluation frameworks, pipeline generation, and priority sorting.
 
 * **Setup & Middleware:**
-  * Initializes the `FastAPI()` app.
-  * Adds `CORSMiddleware` to allow requests from the React frontend running on a different port (5173).
-* **Intelligence Logic:**
-  * `evaluate_stall_risk(deal)`: 
-    * Parses the `last_activity` string into a datetime object.
-    * Compares it against the current datetime. If the difference is >= 7 days, returns `"Stalled"`.
-    * Iterates over the `deal['stakeholders']`. If any stakeholder has `contacted == True` but `responded == False`, returns `"At Risk"`.
-    * Defaults to `"Active"` if neither condition is met.
-  * `determine_next_action(deal)`: 
-    * Takes a deal and determines actionable next steps based on the current pipeline `stage`.
-    * If `Signed`: Checks for an "Integration Manager". If missing, advises identifying one. If present, advises sending API/Sandbox docs.
-    * Global Check: Iterates through all stakeholders. If `contacted` but not `responded`, generates a `follow_up` action targeting that specific stakeholder.
-    * If `Negotiation`: Checks for a "Compliance Officer". If missing, suggests scheduling a compliance review.
-    * Fallback: If no actions are found, suggests `outreach` for "Lead", or `monitor` (All good) for everything else.
+  * Initializes the `FastAPI()` application.
+  * Extends permissive `CORSMiddleware` to integrate seamlessly with the React UI.
+* **Algorithmic Core:**
+  * `evaluate_deal(deal: dict)`:
+    * **Activity Tracking**: Normalizes ISO string offsets computing generic inactive days against `datetime.now()`.
+    * **Activation Architecture**: Specific targeting mechanism for "Signed" prospects detecting activation checkpoints (API Shared, Sandbox, Testing). It explicitly traces roles paired with these checkpoints (e.g. CTO blocks Sandbox, Compliance acts on Testing) and computes a direct bottleneck flag if mapped profiles are totally unresponsive.
+    * **Candidate Scoring Engine**: Internally stages an action ranking module evaluating numeric outputs derived safely from multiple attributes establishing a baseline parameter structure. It scales value points, parses base-urgency matrices, constructs candidate tuples, and dynamically weights responses.
+    * **Outputs**: Formulates the pipeline variables, securely updating inside the dictionary the explicitly categorized strings -> `status` (Active/At Risk/Stalled), `risk_reason` (i.e. "Sandbox blocked due to CTO..."), `<selected>` `next_action`, and a normalized `action_confidence` ratio limit.
+  * `prioritize_deals(deals_list: list)`:
+    * Safely strips down and aggregates string-to-float conversions mapping the overarching `max_value` across the whole deal environment boundary.
+    * Scores every element algorithmically evaluating the absolute combined weights extending out derived risk status caps (Stalled: 50, At Risk: 30), weighted confidence mapping loops (+20% scalar offset), and positional Activation checkpoints dictating priority momentum.
+    * Returns an appended list attaching `priority_score` numerics, assigning mapped labels `priority_level` ("High", "Medium", "Low") dynamically, and sorting `[sort]` the arrays backwards strictly indexing the maximum score elements back to position zero.
 * **API Endpoints:**
-  * `GET /api/deals`: Iterates over the `deals` list from `mock_data.py`. For each deal, it injects the evaluated `status` and `next_actions`, returning the full list to the frontend.
-  * `GET /api/deals/{deal_id}/actions`: Retrieves a specific deal, runs the intelligence engines, and returns its specific actions.
-  * `POST /api/deals/{deal_id}/action`: Simulates a user executing a recommended action.
-    * Expects a JSON payload with `action_type` and optionally `stakeholder_name`.
-    * If `follow_up`: Looks up the specific stakeholder, pulls their specific outreach template, updates the deal's `last_activity` to *now* (clearing the stall), and sets the stakeholder's `responded` status to `True` (simulating risk mitigation).
-    * Returns a success message.
+  * `GET /api/deals`: Passes the internal data mapping through the unified `evaluate_deal` method, intercepts the array executing `prioritize_deals` against it, returning standard payload formatting.
+  * `GET /api/deals/{deal_id}/actions`: Retains singular lookup hooks evaluating precise single-dictionary mappings utilizing standard iterators.
+  * `POST /api/deals/{deal_id}/action`: Catches simulation signals hitting fallback logics mutating internal `last_activity` times securely un-stalling records across the database natively.
 
 ---
 
 ## Frontend Modules
 
-The frontend is a Vite + React application providing a responsive, premium dashboard view.
+The frontend is a React application running explicitly structured real-time decision-support logic handling AI-generated metadata dynamically extending explicit UX hooks securely.
 
 ### `App.jsx`
-**Purpose:** The root application component that maintains state, fetches intelligence data, and renders the layout grid.
+**Purpose:** The root controller managing API fetches, layout structure, top-level metric counters, and rendering nested UI parameters.
 
-* **State Management:**
-  * `deals`: Holds the array of pipeline data returned from the backend.
-  * `loading`: Boolean indicating if a network request is active.
-  * `selectedDeal`: Holds the object of whichever deal row the user clicks on.
-* **Data Fetching:**
-  * `fetchDeals()`: Async function hitting `http://localhost:8000/api/deals`. It updates the `deals` array and strategically updates `selectedDeal` with fresh data so the sidebar intelligence refreshes instantly when actions are taken.
-  * `useEffect()`: Calls `fetchDeals` on the initial mount.
-* **Computed Statistics:**
-  * Calculates `totalPipeline`, `activeDeals`, `stalledDeals`, and `atRiskDeals` dynamically using standard JavaScript array methods (`reduce` and `filter`).
-* **Component Rendering:**
-  * Renders the top Header with a "Refresh" button.
-  * Renders the Top Metric Cards (`stats-grid`), passing the computed statistics.
-  * Renders the main content grid consisting of the Deals Table (generating a `DealRow` for each deal) and the Intelligence Sidebar (rendering `NextBestAction`).
+* **State Hooks**: Leverages distinct memory pointers retaining `deals` logic, `loading` tracking, and the heavily trafficked `selectedDeal` schema mapping sidebar interfaces exactly utilizing nested memory searches against refreshed properties maintaining UX stability.
+* **Layout Grid**: Formats specific columns integrating nested fields correctly, tracking explicit boundaries rendering out `PRIORITY` and `RISK REASON` within the `<th>` block ensuring formatting adheres cleanly to downstream mapping logic hooks natively.
 
 ### `DealRow.jsx`
-**Purpose:** A stateless functional component mapping out a single table row for a specific deal.
+**Purpose:** Formats distinct B2B deal dictionaries executing granular style overrides dictating explicit hierarchy rendering.
 
-* **Props:** `deal` (data object), `selected` (boolean), `onClick` (function).
-* **Helper Functions:**
-  * `getStatusBadge()`: Takes the string status (e.g., "At Risk"), strips whitespace, and maps it to specific CSS badge classes ensuring colored pills render successfully.
-  * `formatCurrency()`: Safely translates integers into US Dollar strings utilizing Javascript's `Intl.NumberFormat`.
-* **Behavior:** Renders the table cells (`<td>`) containing company name, stage, value, badge, and date. Fires the `onClick` prop upstream when clicked.
+* **Props and Callbacks:** Passes down exact API data nodes retaining native functional pointer scopes mapping UI selection arrays securely back out the execution scope.
+* **Logic Components:**
+  * `getPriorityBadge()`: Processes text definitions injecting specifically shaded CSS border lines, native pill shapes `<span />` wrapping specific text, handling conditional matching logic routing out Red, Orange, or Green palettes implicitly executing `High`, `Medium`, `Low`.
+  * `isHighPriority` tracker overrides the parent `<tr>` assigning distinctive border-fills `#ef4444` creating deep-visual highlighting paths dynamically targeting "Stalled" structures without explicit dependencies.
+  * Cleanly enforces `<td />` truncation masking out oversized `risk_reason` strings retaining `title` attribute properties exposing data natively via standard hover events seamlessly handling spacing overflows elegantly.
 
 ### `NextBestAction.jsx`
-**Purpose:** The intelligence sidebar that breaks down the system's recommendations for a `selectedDeal`.
+**Purpose:** The intelligent Action Sidebar tracking exact data boundaries evaluating explicit problem mapping safely translating backend algorithms immediately onto action-oriented UI endpoints seamlessly handling risk contexts explicitly natively.
 
-* **State:** `loadingAction` holds the index of the action currently being triggered to show a spinner.
-* **Component Lifecycle / Behavior:**
-  * If `deal` is null (none selected): Renders a placeholder "empty state".
-  * `handleTriggerAction(action, idx)`:
-    * Triggered when a user clicks the "Simulate Action" button.
-    * Sets the spinner.
-    * Sends a `POST` request to `/api/deals/{id}/action` sending the `action.type` and `stakeholder_name`.
-    * Awaits success, then calls `onActionTriggered()` (which points back to `fetchDeals` in `App.jsx`) to universally refresh the dashboard and clear out completed actions.
-* **Rendering:**
-  * Displays company header and financial value.
-  * Iterates over `deal.next_actions`.
-  * Dynamically maps standard internal "types" (like `schedule_call`) to human-readable headers (like *"Compliance Review"*).
-  * Renders action buttons. Certain action types like `monitor` are rendered as read-only statuses instead of actionable buttons.
-  * Iterates over `deal.stakeholders` to print out an intent and communication summary for each contact associated with the account.
+* **AI Intelligence Panel**: Parses `risk_reason` mapping directly to localized "Problem Identified" wrappers highlighted utilizing explicit brand alerts. Evaluates `<Lightbulb>` logic encapsulating the string output specifically against the optimal explicitly recommended target, followed cleanly with the mathematically projected Intelligence `action_confidence` normalized parameter seamlessly matching visual percentage styling safely extending trust scopes securely to the UX natively.
+* **Simulate Action Triggers**: Safely executes explicitly formatted API fetch POST protocols pushing blank fallback hooks cleanly resetting backend metadata natively catching exact refresh executions pushing loading boundaries properly directly limiting user feedback overlapping requests elegantly limiting broken queues strictly rendering data changes real-time dynamically inside visual feedback loops directly.
 
 ### `index.css`
-**Purpose:** Provides the global styling, design tokens, and components for the UI, establishing the high-end enterprise aesthetic.
+**Purpose:** Provides global definitions and color bounds matching explicit B2B structural properties.
 
-* **Design Tokens (CSS Variables):** 
-  * Defined in `:root`. Exposes primary brand colors, semantic status colors (active, risk, stalled), backgrounds, text colors, and shadows.
-* **Typography:** Integrates `Inter` for standard legibility and `Outfit` for specialized, dynamic headers.
-* **Component Styles:**
-  * `.dashboard-header h1`: Uses a custom `-webkit-text-fill-color: transparent` to achieve the metallic silver-gradient look.
-  * `.stat-card`: Utilizes hover pseudo-selectors to enforce modern card elevations `transform: translateY(-2px)`.
-  * `.deals-table`: Responsive standard table construction.
-  * **Badges & Spinners:** Clean pill selectors and a custom `@keyframes spin` definition for network delays. 
-* **Responsiveness:** Implements basic `@media (max-width: 1024px)` to collapse the 2-column sidebar into a single-column stacked format on smaller devices.
+* Defines and secures CSS boundary variables utilizing semantic variable arrays `--brand-primary`, `--status-active` linking the native styles globally safely limiting redundant hooks creating an explicitly stable execution path matching modern B2B formatting cleanly without additional framework interference explicitly retaining high UX fluidity.
