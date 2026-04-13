@@ -65,9 +65,3 @@ deals = [
     }
 ]
 
-templates = {
-    "CTO": "Hi {name}, wanted to share technical specs for our integration to unblock your team.",
-    "Compliance Officer": "Hello {name}, attaching our SOC2 report and compliance checklist for your review.",
-    "Business Head": "Hi {name}, following up to ensure our commercial terms align with your goals.",
-    "Integration Manager": "Hi {name}, ready to kick off the integration. Here is the sandbox access."
-}

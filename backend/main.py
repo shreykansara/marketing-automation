@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Dict, Any
-from mock_data import deals, templates
+from mock_data import deals
 from datetime import datetime, timedelta
 
 app = FastAPI(title="Blostem Pipeline Intelligence")
@@ -236,47 +236,21 @@ def get_deals():
     sorted_deals = prioritize_deals(deals)
     return {"data": sorted_deals}
 
-@app.get("/api/deals/{deal_id}/actions")
-def get_deal_actions(deal_id: str):
-    deal = next((d for d in deals if d["id"] == deal_id), None)
-    if not deal:
-        raise HTTPException(status_code=404, detail="Deal not found")
-    evaluate_deal(deal)
-    return {"data": deal}
-
 @app.post("/api/deals/{deal_id}/action")
 def trigger_action(deal_id: str, payload: dict):
     deal = next((d for d in deals if d["id"] == deal_id), None)
     if not deal:
         raise HTTPException(status_code=404, detail="Deal not found")
         
-    action_type = payload.get("action_type")
-    stakeholder_name = payload.get("stakeholder_name")
-    
-    if action_type == "follow_up":
-        # Simulate follow up
-        target_s = None
-        for s in deal["stakeholders"]:
-            if s["name"] == stakeholder_name:
-                target_s = s
-                break
-                
-        if target_s:
-            role = target_s["role"]
-            template = templates.get(role, f"Hi {target_s['name']}, just following up on our previous conversation.")
-            message = template.format(name=target_s["name"])
-            # update last activity to now to clear stall
-            deal["last_activity"] = datetime.now(datetime.fromisoformat(deal["last_activity"]).tzinfo).isoformat()
-            target_s["responded"] = True # simulate they now respond or the risk is mitigated for MVP
-            return {"status": "success", "message": f"Simulated outreach sent: '{message}'"}
-                
-    elif action_type == "send_docs":
-        deal["last_activity"] = datetime.now(datetime.fromisoformat(deal["last_activity"]).tzinfo).isoformat()
-        return {"status": "success", "message": "Simulated sandbox and docs email sent."}
-
-    # default fallback
+    # Simply simulate risk mitigation by resetting last_activity
     deal["last_activity"] = datetime.now(datetime.fromisoformat(deal["last_activity"]).tzinfo).isoformat()
-    return {"status": "success", "message": "Action logged successfully."}
+    
+    # If the logic targeted an unresponsive stakeholder, we inherently clear their response lock to demonstrate AI impact
+    for s in deal.get("stakeholders", []):
+         if s.get("contacted") and not s.get("responded"):
+              s["responded"] = True
+              
+    return {"status": "success", "message": "Action configured successfully and risks mitigated."}
 
 if __name__ == "__main__":
     import uvicorn
