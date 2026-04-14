@@ -11,17 +11,17 @@ const DealRow = ({ deal, selected, onClick }) => {
       </span>
     );
   };
-  
+
   const getPriorityBadge = (priority) => {
     let color = 'green';
     if (priority === 'High') color = 'red';
     else if (priority === 'Medium') color = 'orange';
-    
+
     return (
-      <span style={{ 
-        padding: '0.2rem 0.6rem', 
-        borderRadius: '12px', 
-        fontSize: '0.75rem', 
+      <span style={{
+        padding: '0.2rem 0.6rem',
+        borderRadius: '12px',
+        fontSize: '0.75rem',
         fontWeight: 'bold',
         backgroundColor: color === 'red' ? '#fee2e2' : color === 'orange' ? '#fef3c7' : '#dcfce7',
         color: color === 'red' ? '#991b1b' : color === 'orange' ? '#92400e' : '#166534',
@@ -40,13 +40,24 @@ const DealRow = ({ deal, selected, onClick }) => {
     }).format(value || 0);
   };
 
-  const isHighPriority = deal.priority_level === 'High' || deal.status === 'Stalled';
+  const isHighPriority = deal.priority_level === 'High';
+  const isStalled = deal.status === 'Stalled';
+  const needsAttention = isHighPriority || isStalled;
+
+  let rowStyle = {};
+  if (needsAttention) {
+    if (isStalled) {
+      rowStyle = { borderLeft: '4px solid #f97316', backgroundColor: selected ? '#302424ff' : '#241a1aff' }; // orange-100
+    } else {
+      rowStyle = { borderLeft: '4px solid #ef4444', backgroundColor: selected ? '#2b2820ff' : '#24211aff' }; // red-100
+    }
+  }
 
   return (
-    <tr 
+    <tr
       className={`deal-row ${selected ? 'selected' : ''}`}
       onClick={() => onClick(deal)}
-      style={isHighPriority ? { borderLeft: '4px solid #ef4444', backgroundColor: selected ? 'var(--bg-hover)' : '#fff5f5' } : {}}
+      style={rowStyle}
     >
       <td className="company-cell">
         <div className="company-logo-placeholder">

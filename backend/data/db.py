@@ -1,0 +1,15 @@
+import os
+from dotenv import load_dotenv
+from pymongo import MongoClient
+
+load_dotenv()
+
+MONGO_URI = os.getenv("MONGO_URI")
+DB_NAME = os.getenv("DB_NAME")
+
+# Initialize connection to MongoDB instance
+client = MongoClient(MONGO_URI)
+
+# Select database and collection
+db = client[DB_NAME]
+deals_collection = db["deals"]
