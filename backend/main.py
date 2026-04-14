@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routes import deals
+from routes import deals, signals, leads
 
 app = FastAPI(title="Blostem Pipeline Intelligence")
 
@@ -13,6 +13,8 @@ app.add_middleware(
 )
 
 app.include_router(deals.router)
+app.include_router(signals.router)
+app.include_router(leads.router)
 
 if __name__ == "__main__":
     import uvicorn

@@ -13,3 +13,6 @@ client = MongoClient(MONGO_URI)
 # Select database and collection
 db = client[DB_NAME]
 deals_collection = db["deals"]
+signals_collection = db["signals"]
+leads_collection = db["leads"]
+

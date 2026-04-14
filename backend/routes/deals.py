@@ -17,6 +17,12 @@ def get_deals():
     sorted_deals = prioritize_deals(deals)
     return {"data": sorted_deals}
 
+@router.post("/auto-generate")
+def auto_generate_deals():
+    from services.conversion import convert_leads_to_deals
+    result = convert_leads_to_deals()
+    return result
+
 @router.post("/{deal_id}/action")
 def trigger_action(deal_id: str, payload: dict):
     deal = deals_collection.find_one({"id": deal_id})
