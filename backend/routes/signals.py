@@ -1,6 +1,6 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, BackgroundTasks
 from data.db import signals_collection
-from services.ingestion import run_ingestion
+from services.signal_engine.processor import run_ingestion_pipeline_async
 
 router = APIRouter(prefix="/api/signals", tags=["signals"])
 
@@ -16,13 +16,7 @@ def get_signals():
     return {"data": signals}
 
 @router.post("/ingest")
-def trigger_ingestion():
-    # Trigger the ingestion process manually
-    result = run_ingestion()
-    
-    # We remove the MongoDB ObjectId from the generated signals mapping just in case
-    for signal in result["signals"]:
-        if "_id" in signal:
-            signal.pop("_id", None)
-            
+async def trigger_ingestion():
+    # Trigger the ingestion process manually using the real pipeline
+    result = await run_ingestion_pipeline_async()
     return result

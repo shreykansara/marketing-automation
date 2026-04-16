@@ -15,4 +15,6 @@ db = client[DB_NAME]
 deals_collection = db["deals"]
 signals_collection = db["signals"]
 leads_collection = db["leads"]
+companies_collection = db["companies"]
+sync_state_collection = db["sync_state"]
 

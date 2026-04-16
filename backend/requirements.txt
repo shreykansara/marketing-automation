@@ -1,4 +1,8 @@
 fastapi
 uvicorn
 pymongo
-python-dotenvc
+python-dotenv
+apscheduler
+httpx
+feedparser
+tenacityc
