@@ -27,6 +27,8 @@ def convert_leads_to_deals():
             "last_activity": datetime.now(timezone.utc).isoformat(),
             "activation_step": None,
             "source": "auto_generated",
+            "signals": lead.get("signals", []),
+            "intent_score": lead.get("intent_score", 0),
             "stakeholders": [
                 {
                     "role": "CTO",

@@ -1,114 +1,121 @@
-# Technical Documentation: Blostem Pipeline Intelligence System
+# Technical Documentation: Blostem Adaptive Intelligence Pipeline
 
-This document provides a line-by-line technical breakdown and behavioral summary of each module within the robust Blostem Pipeline Intelligence platform. The system operates as a data-driven triad: ingesting market signals, transforming them into scored leads, and automatically converting qualified leads into pipeline deals.
-
-## Table of Contents
-1. [Architecture and Database](#architecture-and-database)
-2. [Backend Modules](#backend-modules)
-   - [Database Layer (`data/`)](#database-layer)
-   - [Services Layer (`services/`)](#services-layer)
-   - [API Routes (`routes/`)](#api-routes)
-   - [Core Aggregator (`main.py`)](#core-aggregator)
-3. [Frontend Modules](#frontend-modules)
-   - [App.jsx (3-Column Funnel)](#appjsx-3-column-funnel)
-   - [NextBestAction.jsx (Insight Pane)](#nextbestactionjsx-insight-pane)
-   - [index.css](#indexcss)
+This document provides a comprehensive, low-level technical breakdown of the Blostem platform architecture, services, and intelligence layers.
 
 ---
 
-## Architecture and Database
+## 1. System Architecture Overview
+The platform is built as an **adaptive control loop** for B2B sales automation. It ingests market signals, aggregates them into leads, converts leads to deals, and then applies a memory-aware decision engine to manage post-deal activation and re-engagement.
 
-The platform runs on a **FastAPI** Python backend coupled with a **React (Vite)** frontend. 
-
-For data persistence, the system natively integrates with **MongoDB Atlas** (cloud-hosted MongoDB). The database (`pipeline_db`) actively manages three collections:
-1. `signals`: Raw external market ingestion payloads (funding, hiring, or product announcements).
-2. `leads`: Grouped and scored signals, identifying intent bounds on a per-company basis.
-3. `deals`: Officially qualified sales opportunities featuring stakeholder activation mapping.
-
-Authentication and configuration are securely loaded into the system environment dynamically using standard `.env` schemas mapping the `MONGO_URI`.
+**Core Stack:**
+- **Backend**: FastAPI (Python)
+- **Database**: MongoDB Atlas
+- **Frontend**: React (Vite)
+- **Intelligence**: Rule-based adaptive logic with historical memory.
 
 ---
 
-## Backend Modules
+## 2. Backend Service Layer (`/backend/services`)
 
-The backend architecture strictly decouples logic into independent processing services communicating via lightweight generic models, eliminating monolithic routing bloat.
+The core business logic is modularized into specialized services.
 
-### Database Layer
+### 2.1 Deal Evaluation (`evaluation.py`)
+**Primary Function**: `evaluate_deal_state(deal: Dict)`
+- **Scope**: Single Deal.
+- **Responsibility**: State Assessment ONLY.
+- **Logic**:
+    - Calculates **Health Status**: `Active`, `Stalled` (7+ days inactive), or `At Risk` (unresponsive stakeholders).
+    - Computes **Urgency Score (0-100)**: Weighted based on Deal Value (20%), Signal Weight (30%), and Decay-adjusted Intent (50%).
+    - Identifies **Risk Reason**: Standardized string describing why a deal is stalled or at risk.
+- **Details**: Time-aware; uses `datetime.now(timezone.utc)` for accurate decay and stall calculations.
 
-#### `data/db.py`
-**Purpose:** Serves as the global singleton connection node to the MongoDB Atlas cluster.
-* Uses `python-dotenv` natively calling `load_dotenv()` to pull `MONGO_URI` securely.
-* Bootstraps the `MongoClient` and exports strict collection variables: `deals_collection`, `signals_collection`, and `leads_collection` mapping to the backend namespaces.
+### 2.2 Adaptive Decision Engine (`decision_engine.py`)
+**Primary Function**: `compute_decision(deal: Dict, evaluation_packet: Dict)`
+- **Scope**: Single Deal.
+- **Responsibility**: Adaptive Control Logic.
+- **Historical Memory**: Consumes `deal['decision_history']` to ensure behavior follows past outcomes.
+- **Key Rules**:
+    1. **Engagement Suppression**: If a `replied` outcome exists within the last 7 days, suppresses all automation (`no_action`).
+    2. **Intent-Aware Cooldown**: Prevents repeated outreach for the same intent within a 72-hour window (`delay_action`).
+    3. **Failure-Based Escalation**: If 2+ attempts for a specific intent are `ignored`, pivots target to `senior_sales` (`escalate`).
+    4. **Stalled Deadlock Detection**: If a deal is `Stalled` for 10+ days with no recent outreach (5 days), triggers `manual_queue` escalation.
+- **Output**: Returns a decision packet containing `decision`, `action_intent`, `priority`, and a detailed `reasoning` string.
 
-#### `data/mock_data.py` / `seed_db.py`
-**Purpose:** Bootstrapping utilities to safely populate the Atlas `deals` cluster for development fallback testing using structured test-driven dictionaries.
+### 2.3 Activation & Outreach (`activation.py`, `outreach_engine.py`)
+- **Activation Refinement**: `refine_activation_context(deal, decision_packet)`
+    - Selects the optimal **Target Role** (CTO, CMO, etc.) and **Channel** (Email, LinkedIn, Direct Call) based on the intended action.
+- **Outreach Execution**: `execute_outreach_generation(deal, activation_context)`
+    - **Attempt Management**: Calculates `attempt_number` by scanning history.
+    - **Message Generation**: Uses intent-based templates with dynamic variables from signals.
+    - **Sequence Creation**: Generates a 2-step sequence (Day 0 and Day 2 follow-up).
+    - **Memory Logging**: Atomically `$push`es a `pending` entry into `deals_collection.decision_history` and upserts to `outreach_sequences`.
 
-### Services Layer
+### 2.4 Feedback & Learning (`feedback_loop.py`)
+**Functions**:
+- `process_interaction_feedback(deal_id, outcome, outreach_id)`: Maps external feedback (opened, replied, ignored) to standardized outcomes.
+- `simulate_feedback_loop()`: Global utility to randomly process all `pending_delivery` sequences for demo purposes.
+- **Impact**: When `replied` is received, it resets `last_activity` and marks all stakeholders as responded, clearing the `At Risk` status.
 
-The `services/` directory contains all pipeline lifecycle transformation mathematics perfectly separated into stages.
-
-#### `services/ingestion.py`
-**Purpose:** Generates structured dummy market behavior models dynamically pushing raw records into the system.
-* `run_ingestion()`: Flushes randomly generated lists of payloads mimicking `TechCrunch` and `LinkedIn` events directly into MongoDB `signals_collection`. Maps fields safely such as `signal_type` ("funding", "hiring").
-
-#### `services/lead_engine.py`
-**Purpose:** Intermediate transformation unit parsing scattered signals and aggregating them structurally into discrete `leads`.
-* `generate_leads()`: Scans all stored signals, grouping by `company`. It mathematically generates an `intent_score` dynamically capped at `100` constructed via logic parameters:
-  * *(Total unique signals * 10)* + *(Distinct signal types * 15)* + *(Recency degradation curve assigning 20 points if under 2 days old)*.
-* Employs native `upsert=True` flags during MongoDB execution targeting `leads_collection` explicitly.
-
-#### `services/conversion.py`
-**Purpose:** Fully automates the bottom-of-the-funnel pipeline by extracting high-value targets natively out of the `leads_collection`.
-* `convert_leads_to_deals()`: Evaluates the cluster using strict logic requiring `intent_score >= 60`. It enforces strong deduplication checking verifying the target company isn't already inside the `deals` database, and finally maps successful criteria directly to a clean Deal dictionary payload structured cleanly with generic placeholder `stakeholders` mapped to native pipeline schemas.
-
-#### `services/evaluation.py` & `services/activation.py` & `services/actions.py` & `services/priority.py`
-**Purpose:** Legacy intelligence hooks mapped directly to tracking active `deals` health. 
-* `evaluation.py`: Maps generic logic bounding `status` strings determining "High Priority", "Active", or "Stalled" boundaries dynamically based upon lack of responses.
-* `actions.py`: Binds "Next Best Action" string recommendations calculating distinct confidence scoring variables assigning explicit instructions natively back to the output model dynamically mapping AI predictions.
-* `priority.py`: Sorting matrix safely returning mathematical precedence back to the table renderer.
-
-### API Routes
-
-The REST framework partitions the distinct data nodes securely preventing overlap constraints via FastAPI `APIRouter()` logic bounded under `/api/`.
-
-#### `routes/signals.py`
-* `GET /api/signals`: Plucks and yields raw extraction models mathematically sorted vertically by timestamp.
-* `POST /api/signals/ingest`: Instantiated manual webhook manually spinning the `ingestion.py` core on demand.
-
-#### `routes/leads.py`
-* `GET /api/leads`: Distributes scored lead aggregations vertically ordered by native `intent_score` mathematical priorities.
-* `POST /api/leads/generate`: Calls out the `lead_engine.py` clustering node.
-
-#### `routes/deals.py`
-* `GET /api/deals`: Maps standard deal structures injecting fallback evaluations natively over `evaluate_deal()` without explicitly disrupting stored databases gracefully structuring presentation variables natively.
-* `POST /api/deals/auto-generate`: Validating payload running the conversion service filtering and appending deals optimally safely isolating overlaps.
-* `POST /api/deals/{id}/action`: Simple simulation parameter resetting activity thresholds securely modifying MongoDB parameters verifying mitigation sequences natively.
-
-### Core Aggregator
-
-#### `main.py`
-**Purpose:** Execution bounds loading all generic parameters hooking `CORS` limits opening `allow_origins` strictly wrapping routers natively loading configurations on Uvicorn dynamically opening active listening nodes over `8000`.
+### 2.5 Signal & Lead Intelligence (`lead_engine.py`, `priority.py`)
+- **Lead Generation**: `generate_leads()`
+    - **Scope**: Global (All signals).
+    - Groups signals by company, calculates `intent_score` (Count + Multi-source + Recency), and upserts to `leads`.
+- **Global Prioritization**: `prioritize_deals(deals_list: List)`
+    - **Scope**: Batch.
+    - Ranks deals based on Status weight, Normalized Value, Action Confidence, and Activation Stage (Signed/Testing/Live).
 
 ---
 
-## Frontend Modules
+## 3. Signal Engine (`/backend/services/signal_engine`)
 
-The frontend operates using React + Vite. The dashboard acts as a visual translation of the complete multi-stage pipeline flow pushing immediate visual boundaries separating elements strictly mathematically aligning formatting safely tracking `Promise.all` logic cleanly scaling metrics exactly rendering UI grids properly natively.
+The Signal Engine is a sophisticated ingestion pipeline for market intelligence.
 
-### `App.jsx` (3-Column Funnel)
-**Purpose:** Primary single-page web rendering block. The dashboard is bisected structurally into a Flow visualization upper-pane, and a detailed Inspector lower-pane tightly tracking API state parameters.
-* **Network Binding**: Executes `Promise.all` loading the triplet data models natively caching `signals`, `leads`, and `deals` asynchronously maintaining synchronization without overlap.
-* **Layout Grid Engine (`.flow-container`)**: Eliminates classic table layouts prioritizing a 3-column flow mapping the journey logically:
-  - **Column 1 (`Signals`)**: Fast-flowing metric cards binding chronological raw timestamps.
-  - **Column 2 (`Leads`)**: Ranked aggregations highlighting thresholds `intent_score >= 60` safely bounding CSS border modifications organically natively showing structural weight.
-  - **Column 3 (`Deals`)**: Output structured business endpoints mapping nested `action` instructions vertically tracking "Stalled" overrides via natively assigned highlight tags tracking strict boundaries smoothly binding mathematical confidence tags explicitly.
-* **Trigger Modals**: Renders generation buttons actively waiting asynchronous requests hitting POST paths dynamically firing refresh logic gracefully resetting output lists accurately.
+### 3.1 Processor (`processor.py`)
+- **Process Signal**: `process_signal(raw_item)`
+    - Extracts company entities using regex/NLP.
+    - Classifies signals into types (Funding, Leadership change, etc.).
+    - Generates **SHA-256 Fingerprints** for strict deduplication.
+- **Orchestrator**: `run_ingestion_pipeline_async()`
+    - Concurrently fetches from all sources and runs the processing chain.
 
-### `NextBestAction.jsx` (Insight Pane)
-**Purpose:** Bottom-anchored detail panel providing drill-down transparency upon clicking any deal card mapped natively via `selectedDeal` hook bindings.
-* Safely isolates unassigned targets securely. Maps explicitly evaluated intelligence flags including the mathematical `action_confidence` scoring output rendered precisely targeting specific Stakeholder roles dynamically evaluating responses and structural paths executing UI recommendations visually natively pushing API adjustments instantly safely.
+### 3.2 Ingestion & Scheduling
+- **Fetchers (`ingestion/fetchers.py`)**: Supports `NewsAPI` (with retries and key redaction) and multi-source `RSS` feeds.
+- **Scheduler (`scheduler.py`)**: Uses `APScheduler` to trigger the ingestion pipeline every 6 hours in a background thread.
 
-### `index.css`
-**Purpose:** Handles cascading logic overrides generating premium dashboard styling limits explicitly setting color metrics exactly wrapping grid limits optimally.
-* Maps `--status-stalled` and `--brand-primary` parameters globally.
-* Builds rigid `.flow-container` arrays securely tracking boundaries rendering elegant high-contrast visual cues isolating distinct stages explicitly mapping UI structures tightly matching expected outputs natively minimizing visual clutter effectively.
+---
+
+## 4. Data Layer (`/backend/data/db.py`)
+
+The system persists state across several MongoDB collections:
+- **`deals`**: Core deal data, stakeholders, signals, and the critical `decision_history` (Memory).
+- **`signals`**: De-duplicated market events with fingerprints.
+- **`leads`**: Aggregated intent data per company.
+- **`outreach_sequences`**: Generated messaging and delivery status.
+- **`companies`**: Normalized company records.
+
+---
+
+## 5. API Interface (`/backend/routes`)
+
+| Endpoint | Method | Purpose |
+| :--- | :---: | :--- |
+| `/api/deals` | GET | Returns all deals enriched with live evaluation and adaptive decisions. |
+| `/api/deals/{id}/evaluate-and-trigger` | POST | Executes the full orchestrator: Eval -> Decide -> Activate -> Execute. |
+| `/api/deals/auto-generate` | POST | Triggers the conversion pipeline (Leads -> Deals). |
+| `/api/signals/ingest` | POST | Manually triggers the ingestion pipeline. |
+| `/api/leads/generate` | POST | Aggregates raw signals into scored leads. |
+| `/api/outreach/sequences` | GET | Lists all generated and pending outreach sequences. |
+
+---
+
+## 6. Frontend Architecture (`/frontend/src`)
+
+The UI is built as a real-time command center for activation intelligence.
+
+- **`App.jsx`**: Manages global state, deal selection, and "System Sync" orchestration.
+- **`DealList.jsx`**: Sidebar component displaying prioritized deals with status chips and urgency scores.
+- **`DecisionView.jsx`**: The "Intelligence Center". Renders the decision reasoning, risk assessment, and provides the "Trigger Evaluation" action button.
+- **`HistoryTimeline.jsx`**: Visualizes the `decision_history` array, showing the progression of automation attempts and their outcomes.
+
+---
+*Documentation updated: 2026-04-17*

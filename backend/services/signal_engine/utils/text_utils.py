@@ -31,7 +31,14 @@ def extract_company(text: str) -> str | None:
                 continue
             return company_name
             
-    return None
+    # Fallback: Extract first 1-3 capitalized words (potential entity)
+    fallback_match = re.search(r'([A-Z][a-zA-Z0-9]{2,}(?:\s[A-Z][a-zA-Z0-9]{2,}){0,2})', text)
+    if fallback_match:
+        name = fallback_match.group(1).strip()
+        if name.lower() not in ["a", "the", "this", "that"]:
+             return name
+
+    return "Unknown"
 
 def generate_fingerprint(company: str, normalized_text: str) -> str:
     """

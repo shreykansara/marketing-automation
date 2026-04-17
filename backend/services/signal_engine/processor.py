@@ -29,9 +29,9 @@ def process_signal(raw_item: dict) -> dict | None:
     
     # 1. Extract company
     company_name = extract_company(text)
-    if not company_name:
-        logger.warning(f"Skipping signal from {source} - missing company. text_sample='{text[:100]}...'")
-        return None
+    if not company_name or company_name == "Unknown":
+        logger.info(f"Using fallback entity for signal from {source} - extracted: '{company_name}'")
+        company_name = company_name or "Unknown"
         
     # 2. Normalize and 3. Upsert company
     company_id = upsert_company(company_name)
