@@ -1,94 +1,116 @@
 import React, { useState, useEffect } from 'react';
+import SignalFeed from './components/SignalFeed';
+import LeadManagement from './components/LeadManagement';
 import DealList from './components/DealList';
 import DecisionView from './components/DecisionView';
-import HistoryTimeline from './components/HistoryTimeline';
-import { RefreshCcw, Database } from 'lucide-react';
+import { Layout, Compass, Zap, RefreshCcw, Briefcase } from 'lucide-react';
 
 function App() {
+  const [viewMode, setViewMode] = useState('pipeline'); // pipeline, market
+  const [signals, setSignals] = useState([]);
   const [deals, setDeals] = useState([]);
   const [selectedDeal, setSelectedDeal] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const fetchDeals = async () => {
+  const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/api/deals');
-      const data = await res.json();
-      const sortedDeals = data.data || [];
-      setDeals(sortedDeals);
+      // Fetch Signals
+      const sigRes = await fetch('http://localhost:8000/api/signals');
+      const sigData = await sigRes.json();
+      setSignals(sigData);
+
+      // Fetch Deals
+      const dealRes = await fetch('http://localhost:8000/api/deals');
+      const dealData = await dealRes.json();
+      setDeals(dealData);
       
-      // Persist selection if possible
       if (selectedDeal) {
-        const updated = sortedDeals.find(d => d.id === selectedDeal.id);
+        const updated = dealData.find(d => d._id === selectedDeal._id);
         if (updated) setSelectedDeal(updated);
-      } else if (sortedDeals.length > 0) {
-        setSelectedDeal(sortedDeals[0]);
       }
     } catch (e) {
-      console.error("Failed to fetch deals", e);
+      console.error("Neural sync failed", e);
     }
     setLoading(false);
   };
 
-  const handleEvaluateAndTrigger = async (dealId) => {
+  const handleConvertToDeal = async (leadId) => {
     try {
-      await fetch(`http://localhost:8000/api/deals/${dealId}/evaluate-and-trigger`, { method: 'POST' });
-      await fetchDeals();
+      const res = await fetch('http://localhost:8000/api/deals/convert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lead_id: leadId })
+      });
+      if (res.ok) {
+        await fetchData();
+        setViewMode('pipeline');
+        alert("Lead successfully promoted to ACTIVE pipeline.");
+      }
     } catch (e) {
-      console.error("Evaluation failed", e);
+      console.error("Conversion failed", e);
     }
-  };
-
-  const handleFullSync = async () => {
-    setSyncing(true);
-    try {
-      // Step 1: Ingest signals
-      await fetch('http://localhost:8000/api/signals/ingest', { method: 'POST' });
-      // Step 2: Auto-generate deals
-      await fetch('http://localhost:8000/api/deals/auto-generate', { method: 'POST' });
-      await fetchDeals();
-    } catch (e) {
-      console.error("Sync failed", e);
-    }
-    setSyncing(false);
   };
 
   useEffect(() => {
-    fetchDeals();
+    fetchData();
+    const interval = setInterval(fetchData, 30000); // Poll every 30s
+    return () => clearInterval(interval);
   }, []);
 
   return (
-    <div className="app-container">
-      {/* LEFT: Selection Sidebar */}
-      <DealList 
-        deals={deals} 
-        selectedDeal={selectedDeal} 
-        onSelectDeal={setSelectedDeal} 
-      />
-
-      {/* CENTER: Intelligence View */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <DecisionView 
-          deal={selectedDeal} 
-          onTriggerEvaluate={handleEvaluateAndTrigger}
-        />
+    <div className="app-shell">
+      {/* SIDEBAR NAVIGATION */}
+      <nav className="sidebar-nav">
+        <div className="nav-brand" style={{ fontSize: '1.5rem', fontWeight: 900 }}>B</div>
         
-        {/* Sync Controls (Overlay bottom left of main view) */}
-        <div style={{ position: 'fixed', bottom: '2rem', left: '340px', display: 'flex', gap: '1rem' }}>
-           <button className="btn btn-primary" onClick={handleFullSync} disabled={syncing}>
-             <Database size={16} /> {syncing ? "Syncing..." : "Full System Sync"}
-           </button>
-           <button className="btn btn-ghost" onClick={fetchDeals} disabled={loading}>
-             <RefreshCcw size={16} className={loading ? 'pulsing' : ''} /> Refresh Pipeline
-           </button>
+        <div 
+          className={`nav-link ${viewMode === 'market' ? 'active' : ''}`}
+          onClick={() => setViewMode('market')}
+        >
+          <Compass size={22} />
         </div>
-      </div>
 
-      {/* RIGHT: Memory View */}
-      <HistoryTimeline 
-        history={selectedDeal?.decision_history || []} 
-      />
+        <div 
+          className={`nav-link ${viewMode === 'pipeline' ? 'active' : ''}`}
+          onClick={() => setViewMode('pipeline')}
+        >
+          <Briefcase size={22} />
+        </div>
+
+        <div style={{ marginTop: 'auto' }}>
+          <div className="nav-link" onClick={fetchData}>
+            <RefreshCcw size={20} className={loading ? 'pulsing' : ''} />
+          </div>
+        </div>
+      </nav>
+
+      {/* MAIN CONTENT AREA */}
+      <main className="main-content">
+        {viewMode === 'market' ? (
+          <div className="dashboard-grid" style={{ gridTemplateColumns: '1fr' }}>
+            <LeadManagement onConvertToDeal={handleConvertToDeal} />
+          </div>
+        ) : (
+          <div className="dashboard-grid">
+            {/* COLUMN 1: LIVE SIGNALS */}
+            <SignalFeed signals={signals} loading={loading} />
+
+            {/* COLUMN 2: ACTIVE PIPELINE */}
+            <DealList 
+              deals={deals} 
+              selectedDeal={selectedDeal} 
+              onSelectDeal={setSelectedDeal} 
+            />
+
+            {/* COLUMN 3: ACTIVATION ZONE */}
+            <DecisionView 
+              deal={selectedDeal} 
+              onRefresh={fetchData} 
+            />
+          </div>
+        )}
+      </main>
     </div>
   );
 }

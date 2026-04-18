@@ -1,114 +1,137 @@
 import React, { useState } from 'react';
-import { Send, AlertTriangle, ShieldAlert, Clock, Sparkles, User, Mail, ChevronRight } from 'lucide-react';
+import { Mail, Send, Sparkles, AlertCircle, CheckCircle } from 'lucide-react';
 
-const DecisionView = ({ deal, onTriggerEvaluate }) => {
-  const [loadingAction, setLoadingAction] = useState(false);
+const DecisionView = ({ deal, onRefresh }) => {
+  const [generating, setGenerating] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [emailDraft, setEmailDraft] = useState({ subject: '', body: '' });
+  const [recipient, setRecipient] = useState('contact@company.com');
 
   if (!deal) {
     return (
-      <div className="main-view mono" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dim)' }}>
-        <div style={{ textAlign: 'center' }}>
-          <Sparkles size={48} style={{ marginBottom: '1rem', opacity: 0.3 }} />
-          <p>SELECT A DEAL TO INITIALIZE INTELLIGENCE VIEW</p>
-        </div>
+      <div className="empty-state" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        Select a deal to activate intelligence
       </div>
     );
   }
 
-  const handleRunCycle = async () => {
-    setLoadingAction(true);
+  const handleGenerate = async () => {
+    setGenerating(true);
     try {
-      await onTriggerEvaluate(deal.id);
-    } catch (e) { console.error(e); }
-    setLoadingAction(false);
+      const res = await fetch(`http://localhost:8000/api/deals/${deal._id}/generate-outreach`, { method: 'POST' });
+      const data = await res.json();
+      setEmailDraft(data);
+    } catch (e) {
+      console.error("AI Generation failed", e);
+    }
+    setGenerating(false);
   };
 
-  const getActionColor = (action) => {
-    if (action === 'trigger_outreach') return 'var(--brand-primary)';
-    if (action === 'escalate') return 'var(--status-escalated)';
-    if (action === 'delay_action') return 'var(--status-stalled)';
-    return 'var(--text-main)';
+  const handleSend = async () => {
+    setSending(true);
+    try {
+      const res = await fetch(`http://localhost:8000/api/deals/${deal._id}/send-outreach`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to_email: recipient,
+          subject: emailDraft.subject,
+          body: emailDraft.body
+        })
+      });
+      if (res.ok) {
+        alert("Email sent successfully via SMTP!");
+        onRefresh();
+        setEmailDraft({ subject: '', body: '' });
+      } else {
+        const err = await res.json();
+        alert(`Error: ${err.detail}`);
+      }
+    } catch (e) {
+      console.error("Send failed", e);
+    }
+    setSending(false);
   };
-
-  const isEscalation = deal.decision === 'escalate';
-  const isOutreach = deal.decision === 'trigger_outreach';
-  const isDelay = deal.decision === 'delay_action';
 
   return (
-    <div className="main-view">
-      <div className="top-nav">
-        <div className="mono" style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
-           WORKSPACE / {deal.company.toUpperCase()} / <span style={{ color: 'var(--text-main)' }}>ADAPTIVE_LOOP_STATE</span>
-        </div>
-        <button className="btn btn-ghost" onClick={handleRunCycle} disabled={loadingAction}>
-          <ShieldAlert size={16} /> {loadingAction ? "Evaluating..." : "Run Intelligence Cycle"}
-        </button>
-      </div>
-
-      <div className="decision-container">
-        <div className="decision-hero">
-          <div className="decision-label">Current System Decision</div>
-          <div className="decision-action" style={{ color: getActionColor(deal.decision) }}>
-            {deal.decision?.replace('_', ' ').toUpperCase() || "MONITORING"}
-          </div>
-          <div className="decision-reasoning">
-            {deal.next_action || "System is observing market signals for relevant triggers."}
-          </div>
-
-          <div className="decision-stats">
-            <div className="stat-card">
-              <div className="stat-label">Health State</div>
-              <div className="stat-value" style={{ color: `var(--status-${deal.status?.toLowerCase()})` }}>
-                {deal.status}
-              </div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-label">Urgency Score</div>
-              <div className="stat-value">{deal.urgency_score}%</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-label">Decision Reason</div>
-              <div className="stat-value mono" style={{ fontSize: '0.9rem', color: 'var(--brand-accent)' }}>
-                {deal.decision_reason || "INITIAL_STATE"}
-              </div>
+    <div className="deal-view">
+      <div className="premium-card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+          <div>
+            <h1 style={{ fontSize: '2.5rem', fontWeight: 800, textTransform: 'capitalize' }}>{deal.company_name}</h1>
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
+              <span className={`status-badge status-${deal.status}`}>{deal.status}</span>
+              <span style={{ color: 'var(--text-dim)', fontSize: '0.8rem' }}>Intention: {deal.intent_score}/100</span>
             </div>
           </div>
+          <div className="intent-pill">{deal.intent_score}</div>
         </div>
 
-        {/* Action Detail Panels */}
-        {isEscalation && (
-          <div className="stat-card" style={{ borderLeft: '4px solid var(--status-escalated)' }}>
-             <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-                <User size={18} color="var(--status-escalated)" />
-                Escalation Target
-             </h4>
-             <p style={{ color: 'var(--text-main)', fontSize: '1.1rem' }}>
-                Route to: <strong className="mono">{deal.escalate_to || "manual_review"}</strong>
-             </p>
-             <p style={{ color: 'var(--text-dim)', fontSize: '0.85rem', marginTop: '0.5rem' }}>
-                System has detected a deadlock or high-priority failure that requires human intervention.
-             </p>
+        <div className="outreach-box">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Sparkles size={18} color="#38bdf8" />
+              AI Outreach Engine
+            </h3>
+            <button 
+              className="btn-premium btn-ghost btn-sm"
+              onClick={handleGenerate}
+              disabled={generating}
+            >
+              {generating ? "Calibrating..." : "Regenerate Draft"}
+            </button>
           </div>
-        )}
 
-        {isDelay && (
-          <div className="stat-card" style={{ borderLeft: '4px solid var(--status-stalled)' }}>
-             <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-                <Clock size={18} color="var(--status-stalled)" />
-                Cooldown Logic
-             </h4>
-             <p style={{ color: 'var(--text-main)', fontSize: '1.1rem' }}>
-                Remaining: <strong className="mono">72h WINDOW ACTIVE</strong>
-             </p>
-             <p style={{ color: 'var(--text-dim)', fontSize: '0.85rem', marginTop: '0.5rem' }}>
-                Automation is paused to prevent repetition and maintain domain reputation.
-             </p>
-          </div>
-        )}
-
-        {/* If Outreach was recently generated, the history will show it, 
-            but we could show a "Pending Sequence" preview if we added that to the deal object.
-            For now, the user sees the decision to trigger it. */}
+          {!emailDraft.subject && !generating ? (
+            <div style={{ textAlign: 'center', padding: '3rem', border: '1px dashed var(--border-glass)', borderRadius: '12px' }}>
+              <Mail size={32} color="var(--text-dim)" style={{ marginBottom: '1rem' }} />
+              <p style={{ color: 'var(--text-dim)' }}>No draft active. Start the intelligence engine.</p>
+              <button className="btn-premium btn-primary" style={{ margin: '1.5rem auto' }} onClick={handleGenerate}>
+                Generate AI Outreach
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <div>
+                <label className="panel-title" style={{ marginBottom: '0.5rem', display: 'block' }}>Recipient</label>
+                <input 
+                  type="text" 
+                  className="email-editor" 
+                  style={{ minHeight: 'auto', padding: '0.8rem' }}
+                  value={recipient}
+                  onChange={(e) => setRecipient(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="panel-title" style={{ marginBottom: '0.5rem', display: 'block' }}>Subject</label>
+                <input 
+                  type="text" 
+                  className="email-editor" 
+                  style={{ minHeight: 'auto', padding: '0.8rem' }}
+                  value={emailDraft.subject}
+                  onChange={(e) => setEmailDraft({...emailDraft, subject: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="panel-title" style={{ marginBottom: '0.5rem', display: 'block' }}>Body Content</label>
+                <textarea 
+                  className="email-editor"
+                  value={emailDraft.body}
+                  onChange={(e) => setEmailDraft({...emailDraft, body: e.target.value})}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button 
+                  className="btn-premium btn-primary" 
+                  onClick={handleSend}
+                  disabled={sending}
+                >
+                  <Send size={18} /> {sending ? "Dispatching..." : "Send via SMTP"}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

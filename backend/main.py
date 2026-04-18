@@ -1,36 +1,33 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routes import deals, signals, leads, companies, outreach
-from services.signal_engine.scheduler import start_scheduler, shutdown_scheduler
+from backend.routes import signals, leads, deals
+from backend.core.db import init_db
+from backend.core.logger import get_logger
 
-app = FastAPI(title="Blostem Pipeline Intelligence")
+logger = get_logger("main")
 
+app = FastAPI(title="Blostem Intelligence Platform API")
+
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # allow all for development
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-@app.get("/health")
-def health_check():
-    return {"status": "healthy"}
-
+# Initialize DB on startup
 @app.on_event("startup")
-def startup_event():
-    start_scheduler()
+async def startup_event():
+    init_db()
+    logger.info("Application started and database initialized.")
 
-@app.on_event("shutdown")
-def shutdown_event():
-    shutdown_scheduler()
+# Include Routes
+app.include_router(signals.router, prefix="/api/signals", tags=["Signals"])
+app.include_router(leads.router, prefix="/api/leads", tags=["Leads"])
+app.include_router(deals.router, prefix="/api/deals", tags=["Deads"])
 
-app.include_router(deals.router)
-app.include_router(signals.router)
-app.include_router(leads.router)
-app.include_router(companies.router)
-app.include_router(outreach.router)
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+@app.get("/")
+async def root():
+    return {"message": "Blostem Intelligence Platform API is online.", "version": "2.0"}
