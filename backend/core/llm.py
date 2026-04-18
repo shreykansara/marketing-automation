@@ -40,16 +40,18 @@ class LLMService:
             }
 
         system_prompt = (
-            "You are a strict sales intelligence information extraction engine. "
-            "Extract business events like funding, acquisitions, partnerships, product launches, or hiring. "
+            "You are a strict sales intelligence engine for Blostem. "
+            "Blostem is a B2B infrastructure platform for Fixed Deposit (FD) distribution in India. "
+            "Our target customers are Banks, NBFCs, Neobanks, Wealthtechs, and Fintechs that want to offer investment products. "
+            "Extract events like funding, partnerships, or product launches that indicate a business is growing or seeking new distribution channels. "
             "Return ONLY valid JSON. No explanations."
         )
         
         user_prompt = (
             f"From the text below, extract: \n"
-            f"1. A list of 'companies' involved.\n"
-            f"2. A 'category' (EXCLUSIVELY choose from: funding, acquisition, partnership, product_launch, hiring, or general).\n"
-            f"3. A 'relevance_score' (0-100) based on signal impact.\n\n"
+            f"1. A list of 'companies' involved. CRITICAL: If multiple companies are mentioned (e.g., a Fintech and its Bank partner), list ONLY the company that would be a potential customer for Blostem (the one needing FD distribution infrastructure).\n"
+            f"2. A 'category' (EXCLUSIVELY choose from: funding, partnership, product_launch, expansion, regulatory, hiring, or general).\n"
+            f"3. A 'relevance_score' (0-100). This is the 'Intent Score'. Calculate it based on how relevant this news is for Blostem's B2B FD sales team. Higher scores for Indian fintechs/banks launching new products or raising funds.\n\n"
             f"Text: {text}\n\n"
             f"Return JSON matching this schema:\n{json.dumps(schema)}"
         )
@@ -65,13 +67,10 @@ class LLMService:
             )
 
             raw_output = response.choices[0].message.content
-            print("RAW LLM OUTPUT:", raw_output)
-
             # Safe parsing
             try:
                 data = json.loads(raw_output.lower())
             except:
-                print("JSON parsing failed, returning fallback")
                 data = {}
 
             result = {
@@ -79,9 +78,7 @@ class LLMService:
                    for key, val in schema.items()},
                 "llm_version": self.version
             }
-
             return result
-
         except Exception as e:
             print("GROQ ERROR:", str(e))
             return {
@@ -89,5 +86,76 @@ class LLMService:
                 "llm_version": self.version
             }
 
+    def analyze_deal_status(self, email_body: str, current_status: str) -> Dict[str, Any]:
+        """
+        Analyze an incoming email to suggest a pipeline status update.
+        """
+        if not self.client:
+            return {"suggested_status": current_status, "reason": "LLM offline"}
+
+        system_prompt = (
+            "You are a sales intelligence expert. "
+            "Analyze the sentiment and intent of an incoming email reply to suggest a pipeline status change. "
+            "Exclusively use these statuses: open, contacted, replied, closed, archived. "
+            "Return JSON with 'suggested_status' and 'reason'."
+        )
+        
+        user_prompt = (
+            f"Current Deal Status: {current_status}\n"
+            f"Incoming Email Body: {email_body}\n\n"
+            f"Which status should this deal move to? provide a brief reason."
+        )
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                response_format={"type": "json_object"},
+                temperature=0
+            )
+            return json.loads(response.choices[0].message.content)
+        except Exception as e:
+            print(f"[ERROR] LLM analysis failed: {e}")
+            return {"suggested_status": current_status, "reason": str(e)}
+
+    def score_deal_logs(self, logs: list) -> int:
+        """
+        Analyze the 3 most recent logs to determine an intent/relevance score (0-100).
+        """
+        if not self.client or not logs:
+            return 0
+            
+        recent_logs = logs[-3:]
+        logs_text = "\n".join([f"- [{l.get('timestamp')}] {l.get('type')}: {l.get('message')}" for l in recent_logs])
+        
+        system_prompt = (
+            "You are a sales prioritization expert for Blostem (B2B FD distribution infra). "
+            "Based on the following activity logs for a company, provide a RELEVANCE SCORE from 0 to 100. "
+            "High scores (80-100) for active partnerships, funding, or successful outreach. "
+            "Medium scores (40-79) for steady progress or replies. "
+            "Low scores (0-39) for archives, rejections, or long periods of inactivity. "
+            "Return ONLY a JSON with the 'score' field."
+        )
+        
+        user_prompt = f"Activity Logs:\n{logs_text}\n\nScore this deal's current relevance."
+        
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                response_format={"type": "json_object"},
+                temperature=0
+            )
+            data = json.loads(response.choices[0].message.content)
+            return int(data.get("score", 0))
+        except Exception as e:
+            print(f"[ERROR] LLM log scoring failed: {e}")
+            return 0
 
 llm_service = LLMService()

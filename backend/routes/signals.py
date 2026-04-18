@@ -1,48 +1,55 @@
 from fastapi import APIRouter
 from backend.services.signals.fetchers import fetch_newsapi, fetch_rss
 from backend.services.signals.processor import process_raw_signals
+from backend.tasks.signals import run_enrichment_pipeline_sync
 from backend.core.db import signals_collection
 from backend.core.logger import get_logger
 
 router = APIRouter()
 logger = get_logger("routes.signals")
 
-
-@router.post("/ingest")
-async def ingest_signals():
-    """Trigger signal ingestion from NewsAPI and RSS."""
-    logger.info("Manual ingestion triggered.")
+@router.post("/generate")
+async def generate_signals():
+    """
+    Use Case 1: Synchronous Signal Generation.
+    Fetch -> Process -> Enforce Unique Hash -> Enrich with AI -> Return Stats
+    """
+    logger.info("Synchronous signal generation triggered.")
     
-    # 1. Fetch signals
+    # 1. Fetch from sources
     news_signals = await fetch_newsapi()
     rss_signals = await fetch_rss(["https://techcrunch.com/feed/"])
-    
     all_raw = news_signals + rss_signals
     
-    # 2. Process (hash, store, enqueue async tasks)
+    # 2. Process & Store (Raw)
     stats = process_raw_signals(all_raw)
+    new_ids = stats.get("new_ids", [])
+    
+    # 3. Synchronous AI Enrichment (Blocking)
+    # The user is okay with the latency.
+    for sid in new_ids:
+        try:
+            run_enrichment_pipeline_sync(sid)
+        except Exception as e:
+            logger.error(f"Sync enrichment failed for {sid}: {e}")
     
     return {
         "status": "success",
-        "fetch_count": len(all_raw),
-        "new_signals": stats["new"],
-        "duplicates_skipped": stats["duplicates"]
+        "ingested": len(all_raw),
+        "new_count": stats["new_count"],
+        "duplicates_skipped": stats["duplicates"],
+        "enriched_count": len(new_ids)
     }
 
-
 @router.get("/")
-async def get_signals(limit: int = 50, status: str = None):
-    """Fetch stored signals with optional status filter."""
-    query = {}
-    
-    if status:
-        query["status"] = status
-    
+async def get_signals():
+    """
+    Use Case 2: Display signals in decreasing order of relevance.
+    """
     signals = list(
         signals_collection
-        .find(query)
-        .sort("created_at", -1)
-        .limit(limit)
+        .find({"status": "enriched"})
+        .sort("relevance_score", -1)
     )
     
     for s in signals:

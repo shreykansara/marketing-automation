@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
+from backend.core.db import signals_collection
 
+# Strategic weights for deal prioritization
 DEAL_WEIGHTS = {
     "funding": 30,
     "acquisition": 35,
@@ -11,13 +13,29 @@ DEAL_WEIGHTS = {
 
 def calculate_deal_intent_score(lead_doc: dict) -> int:
     """
-    Module 3 Scoring:
-    intent_score = funding_signal * 30 + hiring_signal * 20 + recency_factor
+    Refactored Deal Scoring (v2): Derives intent from associated signals 
+    since leads no longer store redundant metric fields.
     """
-    categories = lead_doc.get("categories", {})
+    signal_ids = lead_doc.get("signal_ids", [])
+    if not signal_ids:
+        return 0
+
+    # 1. Fetch associated signals to compute metrics
+    signals = list(signals_collection.find({"_id": {"$in": signal_ids}}))
     
-    # 1. Signal Contribution
-    # User specifically mentioned funding*30 and hiring*20
+    categories = {}
+    last_activity = None
+    for s in signals:
+        cat = s.get("category", "general")
+        categories[cat] = categories.get(cat, 0) + 1
+        
+        created = s.get("created_at")
+        if created:
+            if not last_activity or created > last_activity:
+                last_activity = created
+
+    # 2. Signal Contribution (Weighted)
+    # Priority for 'funding' and 'hiring' as per previous requirements
     signal_score = (
         categories.get("funding", 0) * 30 +
         categories.get("hiring", 0) * 20
@@ -28,25 +46,15 @@ def calculate_deal_intent_score(lead_doc: dict) -> int:
         if cat not in ["funding", "hiring"]:
             signal_score += DEAL_WEIGHTS.get(cat.lower(), 5) * count
 
-    # 2. Recency Factor
-    last_activity = lead_doc.get("last_activity")
+    # 3. Recency Factor
     if not last_activity:
         recency_factor = 0
     else:
-        if isinstance(last_activity, str):
-            try:
-                last_activity = datetime.fromisoformat(last_activity.replace("Z", "+00:00"))
-            except:
-                last_activity = None
+        if last_activity.tzinfo is None:
+            last_activity = last_activity.replace(tzinfo=timezone.utc)
         
-        if last_activity:
-            if last_activity.tzinfo is None:
-                last_activity = last_activity.replace(tzinfo=timezone.utc)
-            
-            now = datetime.now(timezone.utc)
-            days_old = (now - last_activity).days
-            recency_factor = max(0, 40 - days_old) # Up to 40 points for freshness
-        else:
-            recency_factor = 0
+        now = datetime.now(timezone.utc)
+        days_old = (now - last_activity).days
+        recency_factor = max(0, 40 - days_old) # Scaled freshness bonus
 
-    return min(100, signal_score + recency_factor)
+    return min(100, int(signal_score + recency_factor))

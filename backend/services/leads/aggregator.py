@@ -1,55 +1,65 @@
-from collections import defaultdict
+import uuid
 from datetime import datetime, timezone
-from backend.core.db import signals_collection, leads_collection
-from backend.services.leads.scoring import calculate_intent_score
-from backend.services.deals.manager import handle_auto_unarchive
-
-def get_priority(score):
-    if score >= 70:
-        return "high"
-    elif score >= 40:
-        return "medium"
-    return "low"
+from backend.core.db import signals_collection, leads_collection, deals_collection
 
 def update_lead_for_company(company: str):
     """
-    Minimal Lead Aggregation: Update company lead based on enriched signals.
+    Refactored Lead Aggregator (v3): 
+    - Enforces uniqueness per company.
+    - Strictly prevents lead creation if a deal exists.
+    - Adds unique UUIDs to log entries for specific deletion support.
     """
-    company_clean = company.strip()
+    company_clean = company.strip().lower()
     
-    # Simple matching: company name must be in company_mentions list
+    # 1. EXCLUSIVITY CHECK: No lead if a Deal exists
+    if deals_collection.find_one({"company": company_clean}):
+        return
+
+    # 2. Find all enriched signals for this company
     signals = list(signals_collection.find({
         "status": "enriched",
-        "company_mentions": company_clean
+        "company_names": company.strip()
     }))
 
     if not signals:
         return
 
-    categories = defaultdict(int)
-    for s in signals:
-        cat = (s.get("category") or "general").lower().strip()
-        categories[cat] += 1
+    signal_ids = [s["_id"] for s in signals]
+    existing_lead = leads_collection.find_one({"company": company_clean})
 
-    lead_doc = {
-        "company": company_clean.lower(),
-        "signal_ids": [s["_id"] for s in signals],
-        "signal_count": len(signals),
-        "categories": dict(categories),
-        "last_activity": max(s["created_at"] for s in signals),
-        "status": "active",
-        "updated_at": datetime.now(timezone.utc)
-    }
-    
-    # Calculate score
-    lead_doc["intent_score"] = calculate_intent_score(lead_doc)
-    lead_doc["priority"] = get_priority(lead_doc["intent_score"])
-
-    leads_collection.update_one(
-        {"company": company_clean.lower()},
-        {"$set": lead_doc},
-        upsert=True
-    )
-    
-    # Module 3: Auto-unarchive deal if it exists
-    handle_auto_unarchive(company_clean)
+    if existing_lead:
+        # Update existing lead signal set
+        leads_collection.update_one(
+            {"company": company_clean},
+            {
+                "$set": {
+                    "signal_ids": signal_ids,
+                },
+                "$push": {
+                    "logs": {
+                        "log_id": str(uuid.uuid4()),
+                        "timestamp": datetime.now(timezone.utc),
+                        "type": "SIGNAL_UPDATE",
+                        "message": f"Aggregated {len(signals)} total signals.",
+                        "metadata": {"count": len(signals)}
+                    }
+                }
+            }
+        )
+    else:
+        # Create unique lead entry
+        lead_doc = {
+            "company": company_clean,
+            "signal_ids": signal_ids,
+            "emails": [],
+            "logs": [
+                {
+                    "log_id": str(uuid.uuid4()),
+                    "timestamp": datetime.now(timezone.utc),
+                    "type": "LEAD_CREATED",
+                    "message": f"Initial lead aggregation with {len(signals)} signals.",
+                    "metadata": {"initial_count": len(signals)}
+                }
+            ]
+        }
+        leads_collection.insert_one(lead_doc)

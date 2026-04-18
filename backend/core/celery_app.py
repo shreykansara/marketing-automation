@@ -13,7 +13,7 @@ celery_app = Celery(
     "blostem_tasks",
     broker=REDIS_URL,
     backend=REDIS_URL,
-    include=["backend.tasks.signals"]
+    include=["backend.tasks.signals", "backend.tasks.tracker"]
 )
 
 celery_app.conf.update(
@@ -27,6 +27,10 @@ celery_app.conf.update(
         "cluster-signals-every-10-min": {
             "task": "periodic_clustering_task",
             "schedule": 600.0, # 10 minutes
+        },
+        "poll-replies-every-5-min": {
+            "task": "poll_deal_replies_task",
+            "schedule": 300.0, # 5 minutes
         },
     }
 )

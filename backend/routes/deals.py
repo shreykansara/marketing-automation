@@ -1,85 +1,111 @@
 from fastapi import APIRouter, HTTPException, Body
 from typing import List, Optional
 from bson import ObjectId
-from backend.core.db import deals_collection, leads_collection
-from backend.services.deals.manager import convert_lead_to_deal
-from backend.services.deals.outreach import generate_outreach_email, send_email_smtp, record_outreach
+from datetime import datetime, timezone
+from backend.core.db import deals_collection, leads_collection, signals_collection, emails_collection
+from backend.core.llm import llm_service
 from backend.core.logger import get_logger
 
 router = APIRouter()
 logger = get_logger("routes.deals")
 
-@router.post("/convert")
-async def convert_lead(lead_id: str = Body(..., embed=True)):
-    """Convert a qualified lead into a deal."""
-    deal_id = convert_lead_to_deal(lead_id)
-    if not deal_id:
-        raise HTTPException(status_code=404, detail="Lead not found")
-    return {"status": "success", "deal_id": deal_id}
+def calculate_deal_relevance(deal, mode="weighted"):
+    """
+    Complex Relevance Calculation.
+    mode 'weighted': (0.7 * LLM_Log_Score) + (0.3 * Avg_Signal_Score)
+    mode 'logs_only': (1.0 * LLM_Log_Score)
+    """
+    # 1. Capture Log Score via LLM
+    logs = deal.get("logs", [])
+    log_score = llm_service.score_deal_logs(logs) if logs else 0
+    
+    if mode == "logs_only":
+        return log_score
+    
+    # 2. Capture Signal Score (Need to fetch original company signals for the score)
+    # Note: Signals IDs are dropped on promotion, so we fetch by company name
+    company = deal.get("company")
+    signals = list(signals_collection.find({"company_names": company, "status": "enriched"}))
+    
+    if not signals:
+        signal_avg = 0
+    else:
+        scores = [s.get("relevance_score", 0) for s in signals]
+        signal_avg = sum(scores) / len(scores)
+        
+    # 3. Weighted Average (70/30)
+    final_score = (0.7 * log_score) + (0.3 * signal_avg)
+    return round(final_score, 2)
 
 @router.get("/")
-async def list_deals(status: Optional[str] = None):
-    """List all deals, optionally filtered by status."""
-    query = {}
-    if status:
-        query["status"] = status
-        
-    deals = list(deals_collection.find(query).sort("updated_at", -1))
+async def get_deals():
+    """
+    Use Case 4: Display deals in decreasing order of relevance (Weighted).
+    """
+    deals = list(deals_collection.find())
+    
+    processed_deals = []
     for d in deals:
         d["_id"] = str(d["_id"])
-        d["lead_id"] = str(d["lead_id"])
-    return deals
-
-@router.get("/{deal_id}")
-async def get_deal(deal_id: str):
-    """Fetch details of a single deal."""
-    deal = deals_collection.find_one({"_id": ObjectId(deal_id)})
-    if not deal:
-        raise HTTPException(status_code=404, detail="Deal not found")
-    deal["_id"] = str(deal["_id"])
-    deal["lead_id"] = str(deal["lead_id"])
-    return deal
-
-@router.post("/{deal_id}/generate-outreach")
-async def generate_outreach(deal_id: str):
-    """Generate a personalized AI outreach email."""
-    deal = deals_collection.find_one({"_id": ObjectId(deal_id)})
-    if not deal:
-        raise HTTPException(status_code=404, detail="Deal not found")
-    
-    # Get context from signals (first 3)
-    lead = leads_collection.find_one({"_id": deal["lead_id"]})
-    context = f"Company focuses on {', '.join(lead.get('categories', {}).keys())}."
-    
-    email_data = generate_outreach_email(deal["company_name"], context)
-    return email_data
-
-@router.post("/{deal_id}/send-outreach")
-async def send_outreach(
-    deal_id: str, 
-    to_email: str = Body(...),
-    subject: str = Body(...),
-    body: str = Body(...)
-):
-    """Send outreach email and record it."""
-    success = send_email_smtp(to_email, subject, body)
-    if success:
-        record_outreach(deal_id, to_email, subject, body)
-        return {"status": "success"}
-    else:
-        # Fallback: Still record it as record but mark failure? 
-        # For now, just error out
-        raise HTTPException(status_code=500, detail="Failed to send email via SMTP")
-
-@router.patch("/{deal_id}/status")
-async def update_status(deal_id: str, status: str = Body(..., embed=True)):
-    """Manually update deal status (e.g., archive, close)."""
-    valid_statuses = ["open", "contacted", "replied", "closed", "archived"]
-    if status not in valid_statuses:
-        raise HTTPException(status_code=400, detail="Invalid status")
+        d["emails"] = [str(eid) for eid in d.get("emails", [])]
+        d["relevance"] = calculate_deal_relevance(d, mode="weighted")
+        processed_deals.append(d)
         
+    processed_deals.sort(key=lambda x: x["relevance"], reverse=True)
+    return processed_deals
+
+@router.get("/relevance-logs")
+async def get_deals_by_logs():
+    """
+    Use Case 7: Display deals in decreasing order of relevance (Logs-only).
+    """
+    deals = list(deals_collection.find())
+    
+    processed_deals = []
+    for d in deals:
+        d["_id"] = str(d["_id"])
+        d["relevance"] = calculate_deal_relevance(d, mode="logs_only")
+        processed_deals.append(d)
+        
+    processed_deals.sort(key=lambda x: x["relevance"], reverse=True)
+    return processed_deals
+
+@router.post("/promote")
+async def promote_lead(lead_id: str = Body(..., embed=True)):
+    """
+    Use Case 5: Promote leads to deals.
+    Moves data, retains emails/logs, drops signal_ids, deletes lead.
+    """
+    lead = leads_collection.find_one({"_id": ObjectId(lead_id)})
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+        
+    company = lead.get("company")
+    
+    # 1. Prepare Deal Document
+    deal_doc = {
+        "company": company,
+        "emails": lead.get("emails", []),
+        "logs": lead.get("logs", []),
+        "intent_score": 0, # To be updated via routes
+    }
+    
+    # Append promotion event to logs
+    deal_doc["logs"].append({
+        "timestamp": datetime.now(timezone.utc),
+        "type": "PROMOTED_TO_DEAL",
+        "message": "Lead successfully promoted to active pipeline deal.",
+        "metadata": {}
+    })
+    
+    # 2. Insert into Deals
     deals_collection.update_one(
-        {"_id": ObjectId(deal_id)},
-        {"$set": {"status": status, "updated_at": datetime.now(timezone.utc)}}
+        {"company": company},
+        {"$set": deal_doc},
+        upsert=True
     )
-    return {"status": "success"}
+    
+    # 3. Delete Lead
+    leads_collection.delete_one({"_id": ObjectId(lead_id)})
+    
+    return {"status": "success", "company": company}
