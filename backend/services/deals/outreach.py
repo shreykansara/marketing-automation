@@ -7,24 +7,17 @@ from backend.core.llm import llm_service
 from backend.core.db import deals_collection
 
 def generate_outreach_email(company: str, context: str):
-    """
-    Generate personalized outreach email using Groq.
-    """
-    prompt = (
-        f"You are a high-performing Sales Development Representative (SDR). "
-        f"Generate a personalized, short, and punchy outreach email to {company}.\n"
-        f"Context: {context}\n\n"
-        f"The email should have a 'subject' and a 'body'. "
-        f"Format as valid JSON."
-    )
-    
-    schema = {
-        "subject": "string",
-        "body": "string"
-    }
-    
-    result = llm_service.extract_structured(prompt, schema)
-    return result
+    try:
+        result = llm_service.extract_structured(prompt, schema)
+        if not result.get("subject") or not result.get("body"):
+             raise ValueError("Incomplete AI response")
+        return result
+    except Exception as e:
+        print(f"[LLM ERROR] {e}")
+        return {
+            "subject": f"Follow-up: {company} context",
+            "body": f"Hi team at {company},\n\nI noticed some interesting developments in your space and would love to connect.\n\nBest regards,\n[Your Name]"
+        }
 
 def send_email_smtp(to_email: str, subject: str, body: str):
     """

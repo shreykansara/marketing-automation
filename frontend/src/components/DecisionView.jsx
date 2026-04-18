@@ -7,6 +7,14 @@ const DecisionView = ({ deal, onRefresh }) => {
   const [emailDraft, setEmailDraft] = useState({ subject: '', body: '' });
   const [recipient, setRecipient] = useState('contact@company.com');
 
+  // Reset state when selection changes
+  // Must be called BEFORE the early return to follow Rules of Hooks
+  React.useEffect(() => {
+    if (deal?._id) {
+      setEmailDraft({ subject: '', body: '' });
+    }
+  }, [deal?._id]);
+
   if (!deal) {
     return (
       <div className="empty-state" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -16,6 +24,7 @@ const DecisionView = ({ deal, onRefresh }) => {
   }
 
   const handleGenerate = async () => {
+    setEmailDraft({ subject: '', body: '' }); // Immediate visual feedback
     setGenerating(true);
     try {
       const res = await fetch(`http://localhost:8000/api/deals/${deal._id}/generate-outreach`, { method: 'POST' });
