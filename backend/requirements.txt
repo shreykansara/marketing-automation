@@ -13,3 +13,5 @@ scikit-learn
 numpy
 scipy
 sentence-transformers
+gunicorn
+uvicorn[standard]

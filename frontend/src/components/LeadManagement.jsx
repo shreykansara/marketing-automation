@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Target, TrendingUp, UserPlus, Filter, Search } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 const LeadManagement = ({ onConvertToDeal }) => {
   const [leads, setLeads] = useState([]);
@@ -8,7 +9,7 @@ const LeadManagement = ({ onConvertToDeal }) => {
   const fetchLeads = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/api/leads');
+      const res = await fetch(`${API_BASE_URL}/api/leads`);
       const data = await res.json();
       setLeads(data);
     } catch (e) {

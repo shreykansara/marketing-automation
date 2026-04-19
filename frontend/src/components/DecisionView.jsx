@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Mail, Send, Sparkles, AlertCircle, CheckCircle } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 const DecisionView = ({ deal, onRefresh }) => {
   const [generating, setGenerating] = useState(false);
@@ -27,7 +28,7 @@ const DecisionView = ({ deal, onRefresh }) => {
   const handleSync = async () => {
     setSyncing(true);
     try {
-      await fetch(`http://localhost:8000/api/deals/${deal._id}/sync`, { method: 'POST' });
+      await fetch(`${API_BASE_URL}/api/deals/${deal._id}/sync`, { method: 'POST' });
       onRefresh();
     } catch (e) {
       console.error("Sync failed", e);
@@ -37,7 +38,7 @@ const DecisionView = ({ deal, onRefresh }) => {
 
   const handleApproveSuggestion = async () => {
     try {
-      const res = await fetch(`http://localhost:8000/api/deals/${deal._id}/suggestions/approve`, { method: 'POST' });
+      const res = await fetch(`${API_BASE_URL}/api/deals/${deal._id}/suggestions/approve`, { method: 'POST' });
       if (res.ok) onRefresh();
     } catch (e) {
       console.error("Approval failed", e);
@@ -46,7 +47,7 @@ const DecisionView = ({ deal, onRefresh }) => {
 
   const handleRejectSuggestion = async () => {
     try {
-      const res = await fetch(`http://localhost:8000/api/deals/${deal._id}/suggestions/reject`, { method: 'POST' });
+      const res = await fetch(`${API_BASE_URL}/api/deals/${deal._id}/suggestions/reject`, { method: 'POST' });
       if (res.ok) onRefresh();
     } catch (e) {
       console.error("Rejection failed", e);
@@ -57,7 +58,7 @@ const DecisionView = ({ deal, onRefresh }) => {
     setEmailDraft({ subject: '', body: '' }); // Immediate visual feedback
     setGenerating(true);
     try {
-      const res = await fetch(`http://localhost:8000/api/deals/${deal._id}/generate-outreach`, { method: 'POST' });
+      const res = await fetch(`${API_BASE_URL}/api/deals/${deal._id}/generate-outreach`, { method: 'POST' });
       const data = await res.json();
       setEmailDraft(data);
     } catch (e) {
@@ -68,7 +69,7 @@ const DecisionView = ({ deal, onRefresh }) => {
 
   const handleSaveDraft = async () => {
     try {
-      const res = await fetch('http://localhost:8000/api/emails/draft', {
+      const res = await fetch(API_BASE_URL + '/api/emails/draft', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -89,7 +90,7 @@ const DecisionView = ({ deal, onRefresh }) => {
   const handleSend = async () => {
     setSending(true);
     try {
-      const res = await fetch(`http://localhost:8000/api/deals/${deal._id}/send-outreach`, {
+      const res = await fetch(`${API_BASE_URL}/api/deals/${deal._id}/send-outreach`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
