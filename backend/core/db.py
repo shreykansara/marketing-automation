@@ -8,7 +8,7 @@ env_path = os.path.join(base_dir, ".env")
 load_dotenv(env_path)
 
 MONGO_URI = os.getenv("MONGO_URI")
-DB_NAME = os.getenv("DB_NAME", "blostem")
+DB_NAME = os.getenv("DB_NAME", "pipeline_db")
 
 # Initialize connection
 client = MongoClient(MONGO_URI)
