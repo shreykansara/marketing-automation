@@ -1,13 +1,14 @@
 #!/bin/bash
 
-# Start the Celery Worker in the background
-echo "Starting Celery Worker..."
-celery -A backend.core.celery_app worker --loglevel=info --pool=solo &
-
-# Start the Celery Beat scheduler in the background
+# 1. Start Celery Beat (Background)
 echo "Starting Celery Beat..."
 celery -A backend.core.celery_app beat --loglevel=info &
 
-# Start the FastAPI application with Gunicorn
-echo "Starting FastAPI with Gunicorn..."
-gunicorn backend.main:app -w 1 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT
+# 2. Start Celery Worker (Background)
+echo "Starting Celery Worker..."
+celery -A backend.core.celery_app worker --loglevel=info --pool=solo &
+
+# 3. Start a dummy health-check server on $PORT (Foreground)
+# This keeps Render happy by listening to their requested port on the Free Tier.
+echo "Starting Dummy Health Check Server on port $PORT..."
+python -m http.server $PORT

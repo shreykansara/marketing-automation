@@ -1,7 +1,6 @@
 services:
-  # 1. Background Worker (Worker + Beat)
-  # This service stays awake to process signals and tasks.
-  - type: worker
+  # 1. Background Worker (Fake Web Service to stay on Free Plan)
+  - type: web
     name: blostem-worker
     plan: free
     env: python
