@@ -19,9 +19,10 @@ signals_collection = db["signals"]
 leads_collection = db["leads"]
 deals_collection = db["deals"]
 emails_collection = db["emails"]
+companies_collection = db["companies"]
 
 def init_db():
-    """Initialize indexes and TTL according to new 4-collection schema."""
+    """Initialize indexes and TTL according to new 5-collection schema."""
     
     # 1. Signals: Unique hash, 5-day TTL
     signals_collection.create_index([("hash", ASCENDING)], unique=True)
@@ -46,7 +47,11 @@ def init_db():
     emails_collection.create_index([("timestamp", ASCENDING)])
     emails_collection.create_index([("is_logged", ASCENDING)])
     
-    print("Database structure refactored. 4 collections initialized with indexes.")
+    # 5. Companies: Unified point of truth
+    companies_collection.create_index([("name", ASCENDING)], unique=True)
+    companies_collection.create_index([("email_ids", ASCENDING)])
+    
+    print("Database structure refactored. 5 collections initialized with indexes.")
 
 if __name__ == "__main__":
     init_db()

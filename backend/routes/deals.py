@@ -105,6 +105,19 @@ async def promote_lead(lead_id: str = Body(..., embed=True)):
         upsert=True
     )
     
+    # Update Company Record (Mutual Exclusivity: lead=False, deal=True)
+    from backend.core.db import companies_collection
+    companies_collection.update_one(
+        {"name": company},
+        {
+            "$set": {
+                "is_lead_active": False,
+                "is_deal_active": True
+            }
+        },
+        upsert=True
+    )
+    
     # 3. Delete Lead
     leads_collection.delete_one({"_id": ObjectId(lead_id)})
     

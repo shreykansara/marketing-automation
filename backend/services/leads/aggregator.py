@@ -27,6 +27,21 @@ def update_lead_for_company(company: str):
     signal_ids = [s["_id"] for s in signals]
     existing_lead = leads_collection.find_one({"company": company_clean})
 
+    from backend.core.db import companies_collection
+    
+    # Update/Create Company Record (Mutual Exclusivity: lead=True, deal=False)
+    companies_collection.update_one(
+        {"name": company_clean},
+        {
+            "$set": {
+                "is_lead_active": True,
+                "is_deal_active": False
+            },
+            "$setOnInsert": {"email_ids": []}
+        },
+        upsert=True
+    )
+
     if existing_lead:
         # Update existing lead signal set
         leads_collection.update_one(

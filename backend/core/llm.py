@@ -132,12 +132,9 @@ class LLMService:
         logs_text = "\n".join([f"- [{l.get('timestamp')}] {l.get('type')}: {l.get('message')}" for l in recent_logs])
         
         system_prompt = (
-            "You are a sales prioritization expert for Blostem (B2B FD distribution infra). "
-            "Based on the following activity logs for a company, provide a RELEVANCE SCORE from 0 to 100. "
-            "High scores (80-100) for active partnerships, funding, or successful outreach. "
-            "Medium scores (40-79) for steady progress or replies. "
-            "Low scores (0-39) for archives, rejections, or long periods of inactivity. "
-            "Return ONLY a JSON with the 'score' field."
+            "You are a sales prioritization expert for Blostem. "
+            "Based on activity logs, provide a RELEVANCE SCORE 0-100. "
+            "Return ONLY JSON: {'score': 0-100}."
         )
         
         user_prompt = f"Activity Logs:\n{logs_text}\n\nScore this deal's current relevance."
@@ -157,5 +154,47 @@ class LLMService:
         except Exception as e:
             print(f"[ERROR] LLM log scoring failed: {e}")
             return 0
+
+    def generate_outreach_email(self, logs: list, current_status: str, company_name: str) -> Dict[str, str]:
+        """
+        Generate a personalized email subject and body based on deal context.
+        """
+        if not self.client:
+            return {"subject": "AI Draft", "body": "LLM offline. Please check GROQ_API_KEY."}
+
+        recent_logs = logs[-3:]
+        logs_text = "\n".join([f"- {l.get('message')}" for l in recent_logs])
+
+        system_prompt = (
+            "You are a world-class B2B sales copywriter for Blostem. "
+            "Blostem provides FD distribution infrastructure for Banks and Fintechs in India. "
+            "Generate a professional, high-conversion email outreach. "
+            "The tone should be 'Problem-Solving' and 'Consultative'. "
+            "If the current status is 'Unknown', infer it from the activity logs. "
+            "Status Categories: Deal Opened, Outreach Initiated, Engaged, Negotiation/Evaluation, Deal Won, Deal Lost. "
+            "Return ONLY JSON with 'subject' and 'body'. No preamble."
+        )
+
+        user_prompt = (
+            f"Company: {company_name}\n"
+            f"Current Pipeline State: {current_status}\n"
+            f"Recent Activity Logs:\n{logs_text}\n\n"
+            f"Generate a personalized outreach email to move this deal forward."
+        )
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.7
+            )
+            return json.loads(response.choices[0].message.content)
+        except Exception as e:
+            print(f"[ERROR] LLM email generation failed: {e}")
+            return {"subject": "Follow up: Blostem", "body": f"Error generating email: {str(e)}"}
 
 llm_service = LLMService()
