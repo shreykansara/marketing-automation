@@ -5,7 +5,8 @@ import {
   Compass, 
   Users, 
   Briefcase, 
-  Mail
+  Mail,
+  Building2
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -24,6 +25,7 @@ const Sidebar = () => {
         <SidebarLink to="/leads" icon={<Users size={18} />} label="Lead Manager" />
         <SidebarLink to="/deals" icon={<Briefcase size={18} />} label="Active Pipeline" />
         <SidebarLink to="/emails" icon={<Mail size={18} />} label="Communications" />
+        <SidebarLink to="/companies" icon={<Building2 size={18} />} label="Company Registry" />
       </nav>
 
       <style jsx>{`

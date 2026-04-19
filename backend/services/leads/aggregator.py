@@ -27,35 +27,47 @@ def update_lead_for_company(company: str):
     signal_ids = [s["_id"] for s in signals]
     existing_lead = leads_collection.find_one({"company": company_clean})
 
-    from backend.core.db import companies_collection
+    from backend.core.db import companies
     
     # Update/Create Company Record (Mutual Exclusivity: lead=True, deal=False)
-    companies_collection.update_one(
+    # Block lead creation if the company is archived
+    company_record = companies.find_one({"name": company_clean})
+    if company_record and company_record.get("is_archived"):
+        return
+
+    company_res = companies.find_one_and_update(
         {"name": company_clean},
         {
             "$set": {
                 "is_lead_active": True,
                 "is_deal_active": False
             },
-            "$setOnInsert": {"email_ids": []}
+            "$setOnInsert": {
+                "email_ids": [],
+                "is_archived": False
+            }
         },
-        upsert=True
+        upsert=True,
+        return_document=True
     )
+    company_id = company_res["_id"]
 
     if existing_lead:
-        # Update existing lead signal set
+        # Update existing lead signal set and ensure company_id is linked
         leads_collection.update_one(
             {"company": company_clean},
             {
                 "$set": {
                     "signal_ids": signal_ids,
+                    "company_id": company_id
                 }
             }
         )
     else:
-        # Create unique lead entry
+        # Create unique lead entry with relational link
         lead_doc = {
             "company": company_clean,
+            "company_id": company_id,
             "signal_ids": signal_ids,
             "emails": [],
             "logs": [

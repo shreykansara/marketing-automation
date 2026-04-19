@@ -10,27 +10,31 @@ import {
   TrendingUp,
   AlertTriangle,
   Mail,
-  Zap
+  Zap,
+  Search,
+  Plus,
+  X
 } from 'lucide-react';
 import { LogManager } from './LeadsPage';
+import ConfirmModal from '../components/ConfirmModal';
 
 const DealsPage = ({ setSystemStatus }) => {
   const [deals, setDeals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedDeal, setExpandedDeal] = useState(null);
-  const [sortMode, setSortMode] = useState('weighted');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newDealCompany, setNewDealCompany] = useState("");
+  const [deletingDeal, setDeletingDeal] = useState(null);
 
   useEffect(() => {
     fetchDeals();
-  }, [sortMode]);
+  }, []);
 
   const fetchDeals = async () => {
     setLoading(true);
     try {
-      const endpoint = sortMode === 'weighted' 
-        ? 'http://127.0.0.1:8000/api/deals' 
-        : 'http://127.0.0.1:8000/api/deals/relevance-logs';
-      const res = await fetch(endpoint);
+      const res = await fetch('http://127.0.0.1:8000/api/deals');
       const data = await res.json();
       setDeals(data);
     } catch (err) {
@@ -40,6 +44,49 @@ const DealsPage = ({ setSystemStatus }) => {
     }
   };
 
+  const filteredDeals = deals.filter(deal => 
+    deal.company.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleAddDeal = async () => {
+    if (!newDealCompany.trim()) return;
+    try {
+      setSystemStatus('processing');
+      const res = await fetch('http://127.0.0.1:8000/api/deals/manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ company_name: newDealCompany })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Failed');
+      await fetchDeals();
+      setSystemStatus('idle');
+      setShowAddModal(false);
+      setNewDealCompany("");
+    } catch (err) {
+       alert(err.message);
+       setSystemStatus('error');
+    }
+  };
+
+  const handleDeleteDeal = async () => {
+    if (!deletingDeal) return;
+    try {
+      setSystemStatus('processing');
+      const res = await fetch(`http://127.0.0.1:8000/api/deals/${deletingDeal._id}`, { method: 'DELETE' });
+      if (res.ok) {
+        await fetchDeals();
+        setSystemStatus('idle');
+        setDeletingDeal(null);
+      } else {
+        setSystemStatus('error');
+      }
+    } catch (err) {
+      setSystemStatus('error');
+    }
+  };
+
+
   return (
     <div className="page-container">
       <header className="main-header">
@@ -48,9 +95,27 @@ const DealsPage = ({ setSystemStatus }) => {
           <p className="header-desc">Prioritize and track high-urgency business deals</p>
         </div>
         
-        <div className="header-actions glass">
+        <div className="header-actions">
+          <div className="search-box glass">
+            <Search size={18} />
+            <input 
+              type="text" 
+              placeholder="Search companies..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+
           <button 
-            className="action-btn-icon" 
+            className="action-btn-icon glass" 
+            title="Add Manual Deal"
+            onClick={() => setShowAddModal(true)}
+          >
+            <Plus size={18} />
+          </button>
+
+          <button  
+            className="action-btn-icon glass" 
             title="Sync Intelligence"
             onClick={async () => {
               setSystemStatus('processing');
@@ -63,115 +128,203 @@ const DealsPage = ({ setSystemStatus }) => {
           >
             <TrendingUp size={18} />
           </button>
-          
-          <div className="divider"></div>
-
-          <div className="toggle-group">
-            <button 
-              className={`toggle-btn ${sortMode === 'weighted' ? 'active' : ''}`}
-              onClick={() => setSortMode('weighted')}
-            >
-              Smart Urgency
-            </button>
-            <button 
-              className={`toggle-btn ${sortMode === 'logs_only' ? 'active' : ''}`}
-              onClick={() => setSortMode('logs_only')}
-            >
-              Action Intensity
-            </button>
-          </div>
         </div>
       </header>
 
       <div className="deals-list">
         {loading ? (
           <div className="empty-state"><div className="loader"></div></div>
-        ) : deals.length > 0 ? (
-          deals.map(deal => (
+        ) : filteredDeals.length > 0 ? (
+          filteredDeals.map(deal => (
             <DealCard 
               key={deal._id} 
               deal={deal} 
               isExpanded={expandedDeal === deal._id}
               onToggle={() => setExpandedDeal(expandedDeal === deal._id ? null : deal._id)}
+              onDelete={() => setDeletingDeal(deal)}
               refresh={fetchDeals}
             />
           ))
         ) : (
           <div className="empty-state glass">
             <Briefcase size={48} />
-            <h3>Pipeline Empty</h3>
-            <p>Promote qualified leads to start tracking deals here.</p>
+            <h3>{searchQuery ? "No matching deals" : "Pipeline Empty"}</h3>
+            <p>{searchQuery ? "Refine your search parameters." : "Promote qualified leads to start tracking deals here."}</p>
           </div>
         )}
       </div>
+
+      {showAddModal && (
+        <div className="modal-overlay animate-fade-in">
+          <div className="modal-content glass animate-slide-up">
+            <div className="modal-header">
+              <h2 className="outfit">Register Manual Deal</h2>
+              <button className="close-btn" onClick={() => setShowAddModal(false)}><X size={20} /></button>
+            </div>
+            <div className="modal-body">
+              <div className="input-field">
+                <label>Company Name</label>
+                <input 
+                  autoFocus
+                  type="text" 
+                  className="glass-input"
+                  placeholder="e.g. Acme Corp"
+                  value={newDealCompany}
+                  onChange={(e) => setNewDealCompany(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleAddDeal()}
+                />
+              </div>
+              <p className="helper-text" style={{marginTop:'1rem', fontSize:'0.8rem', color:'var(--text-muted)'}}>
+                If this company is currently a lead, it will automatically be promoted to an active deal.
+              </p>
+            </div>
+            <div className="modal-footer">
+               <button className="secondary-btn" onClick={() => setShowAddModal(false)}>Cancel</button>
+               <button className="primary-btn" onClick={handleAddDeal}>Create Deal</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ConfirmModal 
+        isOpen={!!deletingDeal}
+        onClose={() => setDeletingDeal(null)}
+        onConfirm={handleDeleteDeal}
+        title="Delete Deal & Archive"
+        message={`Are you sure you want to delete the deal for "${deletingDeal?.company}"? This will drop it from the pipeline and instantly archive the company registry.`}
+        confirmText="Delete & Archive Company"
+        type="danger"
+      />
 
       <style jsx>{`
         .header-actions {
           display: flex;
           align-items: center;
-          padding: 0.35rem;
-          border-radius: 14px;
-          gap: 0.5rem;
+          gap: 1.5rem;
         }
-        
+
+        .search-box {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          padding: 0.5rem 1.25rem;
+          border-radius: 12px;
+          min-width: 320px;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid var(--glass-border);
+        }
+
+        .search-box input {
+          background: none;
+          border: none;
+          color: white;
+          width: 100%;
+          outline: none;
+          font-size: 0.9rem;
+        }
+
         .action-btn-icon {
-          width: 36px;
-          height: 36px;
+          width: 42px;
+          height: 42px;
           display: flex;
           align-items: center;
           justify-content: center;
-          background: none;
-          border: none;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid var(--glass-border);
           color: var(--text-muted);
           cursor: pointer;
-          border-radius: 10px;
+          border-radius: 12px;
           transition: all 0.2s;
         }
         
         .action-btn-icon:hover {
-          background: rgba(255, 255, 255, 0.05);
+          background: rgba(255, 255, 255, 0.08);
           color: var(--text-main);
+          border-color: rgba(255, 255, 255, 0.2);
         }
 
-        .divider {
-          width: 1px;
-          height: 20px;
-          background: var(--glass-border);
-          margin: 0 0.25rem;
-        }
-
-        .toggle-group {
-          display: flex;
-          gap: 0.25rem;
-        }
-        
-        .toggle-btn {
-          padding: 0.5rem 1rem;
-          border: none;
-          background: none;
-          color: var(--text-muted);
-          font-weight: 800;
-          font-size: 0.8rem;
-          cursor: pointer;
-          border-radius: 10px;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .toggle-btn.active {
-          background: var(--accent-primary);
-          color: white;
-          box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-        }
         .deals-list {
           display: flex;
           flex-direction: column;
           gap: 1.5rem;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+          position: fixed;
+          top: 0; left: 0; right: 0; bottom: 0;
+          background: rgba(0, 0, 0, 0.6);
+          backdrop-filter: blur(8px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+        }
+        .modal-content {
+          background: rgba(20, 24, 40, 0.95);
+          width: 100%;
+          max-width: 450px;
+          padding: 2.5rem;
+          border-radius: 24px;
+        }
+        .modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 2rem;
+        }
+        .modal-header h2 { font-size: 1.5rem; font-weight: 800; }
+        .close-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; }
+        .glass-input {
+          width: 100%;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid var(--glass-border);
+          border-radius: 12px;
+          padding: 0.85rem 1.25rem;
+          color: white;
+          outline: none;
+          transition: border-color 0.2s;
+        }
+        .glass-input:focus { border-color: var(--accent-primary); }
+        .input-field label {
+          display: block;
+          font-size: 0.8rem;
+          font-weight: 800;
+          text-transform: uppercase;
+          color: var(--text-muted);
+          margin-bottom: 0.75rem;
+          letter-spacing: 0.05em;
+        }
+        .modal-footer {
+          margin-top: 2.5rem;
+          display: flex;
+          justify-content: flex-end;
+          gap: 1rem;
+        }
+        .primary-btn {
+          padding: 0.85rem 1.75rem;
+          background: var(--accent-primary);
+          color: white;
+          border: none;
+          border-radius: 12px;
+          font-weight: 800;
+          cursor: pointer;
+        }
+        .secondary-btn {
+           padding: 0.85rem 1.75rem;
+           background: rgba(255, 255, 255, 0.05);
+           color: var(--text-main);
+           border: 1px solid var(--glass-border);
+           border-radius: 12px;
+           font-weight: 800;
+           cursor: pointer;
         }
       `}</style>
     </div>
   );
 };
 
-const DealCard = ({ deal, isExpanded, onToggle, refresh }) => {
+const DealCard = ({ deal, isExpanded, onToggle, refresh, onDelete }) => {
   const getSeverity = (score) => {
     if (score >= 80) return 'critical';
     if (score >= 50) return 'active';
@@ -210,6 +363,13 @@ const DealCard = ({ deal, isExpanded, onToggle, refresh }) => {
         <div className="deal-actions">
           <div className="action-stack">
             {deal.relevance >= 80 && <div className="hot-pulse-outer"><div className="hot-pulse-inner"></div></div>}
+            <button 
+              className="btn-icon mini delete-btn" 
+              onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              title="Delete Deal & Archive"
+            >
+              <Trash2 size={16} />
+            </button>
             <button className="btn-icon mini">
               {isExpanded ? <ChevronUp size={20} /> : <MessageSquare size={18} />}
             </button>
@@ -359,8 +519,12 @@ const DealCard = ({ deal, isExpanded, onToggle, refresh }) => {
         .action-stack {
           display: flex;
           align-items: center;
-          gap: 1.5rem;
+          gap: 1rem;
         }
+
+        .delete-btn { color: var(--text-muted); opacity: 0; pointer-events: none; transition: all 0.2s; }
+        .deal-main:hover .delete-btn { opacity: 1; pointer-events: auto; }
+        .delete-btn:hover { color: var(--accent-danger); border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.1); }
 
         .deal-details {
           padding: 0 2rem 3rem 2rem;

@@ -107,7 +107,6 @@ const Dashboard = () => {
         <section className="alerts-section">
           <div className="section-header">
             <h3 className="outfit"><AlertCircle size={20} /> Priority Alerts</h3>
-            <button className="btn-text" onClick={() => navigate('/explore')}>View all</button>
           </div>
 
           <div className="alerts-list">

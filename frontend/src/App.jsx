@@ -6,6 +6,7 @@ import ExplorePage from './pages/ExplorePage';
 import LeadsPage from './pages/LeadsPage';
 import DealsPage from './pages/DealsPage';
 import EmailPage from './pages/EmailPage';
+import CompaniesPage from './pages/CompaniesPage';
 
 function App() {
   const [systemStatus, setSystemStatus] = useState('idle'); // 'idle', 'processing', 'error'
@@ -33,6 +34,10 @@ function App() {
             <Route 
               path="/emails" 
               element={<EmailPage setSystemStatus={setSystemStatus} />} 
+            />
+            <Route 
+              path="/companies" 
+              element={<CompaniesPage setSystemStatus={setSystemStatus} />} 
             />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

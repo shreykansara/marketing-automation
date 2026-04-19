@@ -1,3 +1,4 @@
+import uuid
 from fastapi import APIRouter, HTTPException, Body
 from typing import List, Optional
 from bson import ObjectId
@@ -47,6 +48,7 @@ async def get_deals():
     processed_deals = []
     for d in deals:
         d["_id"] = str(d["_id"])
+        d["company_id"] = str(d.get("company_id", ""))
         d["emails"] = [str(eid) for eid in d.get("emails", [])]
         d["relevance"] = calculate_deal_relevance(d, mode="weighted")
         processed_deals.append(d)
@@ -64,6 +66,7 @@ async def get_deals_by_logs():
     processed_deals = []
     for d in deals:
         d["_id"] = str(d["_id"])
+        d["company_id"] = str(d.get("company_id", ""))
         d["relevance"] = calculate_deal_relevance(d, mode="logs_only")
         processed_deals.append(d)
         
@@ -81,10 +84,12 @@ async def promote_lead(lead_id: str = Body(..., embed=True)):
         raise HTTPException(status_code=404, detail="Lead not found")
         
     company = lead.get("company")
+    company_id = lead.get("company_id")
     
     # 1. Prepare Deal Document
     deal_doc = {
         "company": company,
+        "company_id": company_id,
         "emails": lead.get("emails", []),
         "logs": lead.get("logs", []),
         "intent_score": 0, # To be updated via routes
@@ -106,8 +111,8 @@ async def promote_lead(lead_id: str = Body(..., embed=True)):
     )
     
     # Update Company Record (Mutual Exclusivity: lead=False, deal=True)
-    from backend.core.db import companies_collection
-    companies_collection.update_one(
+    from backend.core.db import companies
+    companies.update_one(
         {"name": company},
         {
             "$set": {
@@ -122,3 +127,86 @@ async def promote_lead(lead_id: str = Body(..., embed=True)):
     leads_collection.delete_one({"_id": ObjectId(lead_id)})
     
     return {"status": "success", "company": company}
+
+@router.post("/manual")
+async def add_manual_deal(company_name: str = Body(..., embed=True)):
+    """
+    Manually inject a company into the deals pipeline.
+    If it's already a lead, it will be automatically promoted.
+    """
+    company_clean = company_name.strip().lower()
+    if not company_clean:
+         raise HTTPException(status_code=400, detail="Company name cannot be empty")
+
+    # 1. Check if Deal exists
+    deal = deals_collection.find_one({"company": company_clean})
+    if deal:
+         raise HTTPException(status_code=400, detail="A deal for this company already exists.")
+
+    # 2. Check if Lead exists (promotes if true)
+    lead = leads_collection.find_one({"company": company_clean})
+    
+    # 3. Create or update Company registry
+    from backend.core.db import companies
+    company_res = companies.find_one_and_update(
+        {"name": company_clean},
+        {
+            "$set": {
+                "is_lead_active": False,
+                "is_deal_active": True,
+                "is_archived": False
+            },
+            "$setOnInsert": {"email_ids": [], "first_seen_at": datetime.now(timezone.utc)}
+        },
+        upsert=True,
+        return_document=True
+    )
+    company_id = company_res["_id"]
+
+    # 4. Insert into Deals
+    deal_doc = {
+        "company": company_clean,
+        "company_id": company_id,
+        "emails": lead.get("emails", []) if lead else [],
+        "logs": lead.get("logs", []) if lead else [],
+        "intent_score": 0
+    }
+    
+    deal_doc["logs"].append({
+        "log_id": str(uuid.uuid4()),
+        "timestamp": datetime.now(timezone.utc),
+        "type": "MANUAL_DEAL",
+        "message": "Manually added to deals pipeline" + (" (promoted from lead)." if lead else "."),
+        "metadata": {}
+    })
+    
+    deals_collection.insert_one(deal_doc)
+    
+    if lead:
+        leads_collection.delete_one({"_id": lead["_id"]})
+        
+    return {"status": "success", "message": "Deal created successfully"}
+
+@router.delete("/{deal_id}")
+async def delete_deal(deal_id: str):
+    """
+    Delete a deal and automatically archive the associated company.
+    """
+    deal = deals_collection.find_one({"_id": ObjectId(deal_id)})
+    if not deal:
+        raise HTTPException(status_code=404, detail="Deal not found")
+        
+    company_id = deal.get("company_id")
+    
+    # 1. Delete the deal
+    deals_collection.delete_one({"_id": ObjectId(deal_id)})
+    
+    # 2. Archive the company
+    if company_id:
+        from backend.core.db import companies
+        companies.update_one(
+            {"_id": ObjectId(company_id)},
+            {"$set": {"is_archived": True, "is_deal_active": False}}
+        )
+        
+    return {"status": "success"}

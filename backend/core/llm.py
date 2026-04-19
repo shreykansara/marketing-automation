@@ -40,18 +40,19 @@ class LLMService:
             }
 
         system_prompt = (
-            "You are a strict sales intelligence engine for Blostem. "
-            "Blostem is a B2B infrastructure platform for Fixed Deposit (FD) distribution in India. "
-            "Our target customers are Banks, NBFCs, Neobanks, Wealthtechs, and Fintechs that want to offer investment products. "
-            "Extract events like funding, partnerships, or product launches that indicate a business is growing or seeking new distribution channels. "
+            "You are a high-precision Named Entity Recognition (NER) engine specialized in B2B sales intelligence for Blostem. "
+            "Blostem provides backend infrastructure for Fixed Deposit (FD) distribution. "
+            "Our target customers are Banks, NBFCs, Fintechs, Neobanks, and Wealthtechs in the Indian market. "
+            "Your goal is to identify all organizations mentioned in news text that are involved in strategic events like funding, partnerships, or product launches. "
+            "Extract carefully even if the company name is only mentioned once. "
             "Return ONLY valid JSON. No explanations."
         )
         
         user_prompt = (
-            f"From the text below, extract: \n"
-            f"1. A list of 'companies' involved. CRITICAL: If multiple companies are mentioned (e.g., a Fintech and its Bank partner), list ONLY the company that would be a potential customer for Blostem (the one needing FD distribution infrastructure).\n"
-            f"2. A 'category' (EXCLUSIVELY choose from: funding, partnership, product_launch, expansion, regulatory, hiring, or general).\n"
-            f"3. A 'relevance_score' (0-100). This is the 'Intent Score'. Calculate it based on how relevant this news is for Blostem's B2B FD sales team. Higher scores for Indian fintechs/banks launching new products or raising funds.\n\n"
+            f"Analyze the following news text and extract strategic intelligence. \n\n"
+            f"1. 'companies': Extract a list of all organization names mentioned (e.g., 'HDFC Bank', 'Razorpay', 'Juno'). Focus on the entities that are the subjects of the news (those raising money, launching products, or forming partnerships).\n"
+            f"2. 'category': Choose ONE (funding, partnership, product_launch, expansion, regulatory, hiring, general).\n"
+            f"3. 'relevance_score': Rate from 0-100 based on the intent for FD distribution infra. High scores for Indian financial entities expanding their product suite or raising capital.\n\n"
             f"Text: {text}\n\n"
             f"Return JSON matching this schema:\n{json.dumps(schema)}"
         )

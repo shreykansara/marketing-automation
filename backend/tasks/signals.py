@@ -1,7 +1,7 @@
 from bson import ObjectId
 from datetime import datetime, timezone
 from backend.core.celery_app import celery_app
-from backend.core.db import signals_collection
+from backend.core.db import signals_collection, companies
 from backend.core.llm import llm_service
 from backend.core.logger import get_logger
 
@@ -46,7 +46,6 @@ def generate_embedding_task(signal_id: str, sync: bool = False):
 def enrich_signal_task(signal_id: str, sync: bool = False):
     """
     Step 3: Extract company mentions and category using LLM.
-    Decoupled from Lead Aggregation as per new API requirements.
     """
     try:
         signal = signals_collection.find_one({"_id": ObjectId(signal_id)})
@@ -64,21 +63,49 @@ def enrich_signal_task(signal_id: str, sync: bool = False):
             enrichment = llm_service.extract_structured(text, schema)
         except Exception as e:
             logger.error(f"LLM Extraction failed for {signal_id}: {e}")
+            signals_collection.update_one(
+                {"_id": ObjectId(signal_id)},
+                {"$set": {
+                    "status": "enrichment_failed",
+                    "error_log": str(e)
+                }}
+            )
             return
         
         category = (enrichment.get("category") or "general").lower().strip()
         
-        # Defensive cast to ensure consistency (int)
         try:
             base_score = int(enrichment.get("relevance_score", 0))
         except (ValueError, TypeError):
             base_score = 0
         
+        company_names = enrichment.get("companies", [])
+        
+        # 1. Update centralized 'companies' collection
+        for name in company_names:
+            company_clean = name.strip().lower()
+            if not company_clean:
+                continue
+                
+            companies.update_one(
+                {"name": company_clean},
+                {
+                    "$setOnInsert": {
+                        "name": company_clean,
+                        "first_seen_at": datetime.now(timezone.utc),
+                        "email_ids": []
+                    }
+                },
+                upsert=True
+            )
+
+        # 2. Update the original signal
         update_data = {
-            "company_names": enrichment.get("companies", []),
+            "company_names": company_names,
             "category": category,
             "relevance_score": base_score,
-            "status": "enriched"
+            "status": "enriched",
+            "error_log": None # Clear any previous errors on success
         }
         
         signals_collection.update_one(
@@ -87,4 +114,8 @@ def enrich_signal_task(signal_id: str, sync: bool = False):
         )
         
     except Exception as e:
-        logger.error(f"Enrichment task failed for {signal_id}: {e}")
+        logger.error(f"Enrichment task critical failure for {signal_id}: {e}")
+        signals_collection.update_one(
+            {"_id": ObjectId(signal_id)},
+            {"$set": {"status": "enrichment_failed", "error_log": str(e)}}
+        )

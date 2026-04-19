@@ -10,7 +10,8 @@ import {
   History,
   Send,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  X
 } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
 
@@ -19,6 +20,9 @@ const LeadsPage = ({ setSystemStatus }) => {
   const [loading, setLoading] = useState(true);
   const [expandedLead, setExpandedLead] = useState(null);
   const [error, setError] = useState(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newLeadCompany, setNewLeadCompany] = useState("");
+  const [deletingLead, setDeletingLead] = useState(null);
 
   useEffect(() => {
     fetchLeads();
@@ -59,6 +63,45 @@ const LeadsPage = ({ setSystemStatus }) => {
     }
   };
 
+  const handleAddLead = async () => {
+    if (!newLeadCompany.trim()) return;
+    try {
+      setSystemStatus('processing');
+      const res = await fetch('http://127.0.0.1:8000/api/leads/manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ company_name: newLeadCompany })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Failed');
+      await fetchLeads();
+      setSystemStatus('idle');
+      setShowAddModal(false);
+      setNewLeadCompany("");
+    } catch (err) {
+       alert(err.message);
+       setSystemStatus('error');
+    }
+  };
+
+  const handleDeleteLead = async () => {
+    if (!deletingLead) return;
+    try {
+      setSystemStatus('processing');
+      const res = await fetch(`http://127.0.0.1:8000/api/leads/${deletingLead._id}`, { method: 'DELETE' });
+      if (res.ok) {
+        await fetchLeads();
+        setSystemStatus('idle');
+        setDeletingLead(null);
+      } else {
+        setSystemStatus('error');
+      }
+    } catch (err) {
+      setSystemStatus('error');
+    }
+  };
+
+
   const regenerateLeads = async () => {
     setSystemStatus('processing');
     try {
@@ -77,10 +120,16 @@ const LeadsPage = ({ setSystemStatus }) => {
           <h1 className="header-title outfit">Lead Manager</h1>
           <p className="header-desc">Consolidated intent groups ready for conversion</p>
         </div>
-        <button className="btn btn-outline" onClick={regenerateLeads}>
-          <TrendingUp size={18} />
-          Sync Intelligence
-        </button>
+        <div style={{display: 'flex', gap: '1rem'}}>
+          <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
+            <Plus size={18} />
+            New Lead
+          </button>
+          <button className="btn btn-outline" onClick={regenerateLeads} style={{background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid var(--glass-border)'}}>
+            <TrendingUp size={18} />
+            Sync Intelligence
+          </button>
+        </div>
       </header>
 
       {error && (
@@ -102,6 +151,7 @@ const LeadsPage = ({ setSystemStatus }) => {
               isExpanded={expandedLead === lead._id}
               onToggle={() => setExpandedLead(expandedLead === lead._id ? null : lead._id)}
               onPromote={() => handlePromote(lead._id)}
+              onDelete={() => setDeletingLead(lead)}
               refresh={fetchLeads}
             />
           ))
@@ -113,6 +163,45 @@ const LeadsPage = ({ setSystemStatus }) => {
           </div>
         )}
       </div>
+
+      {showAddModal && (
+        <div className="modal-overlay animate-fade-in">
+          <div className="modal-content glass animate-slide-up">
+            <div className="modal-header">
+              <h2 className="outfit">Register Manual Lead</h2>
+              <button className="close-btn" onClick={() => setShowAddModal(false)}><X size={20} /></button>
+            </div>
+            <div className="modal-body">
+              <div className="input-field">
+                <label>Company Name</label>
+                <input 
+                  autoFocus
+                  type="text" 
+                  className="glass-input"
+                  placeholder="e.g. Acme Corp"
+                  value={newLeadCompany}
+                  onChange={(e) => setNewLeadCompany(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleAddLead()}
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+               <button className="secondary-btn" onClick={() => setShowAddModal(false)}>Cancel</button>
+               <button className="primary-btn" onClick={handleAddLead}>Create Lead</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ConfirmModal 
+        isOpen={!!deletingLead}
+        onClose={() => setDeletingLead(null)}
+        onConfirm={handleDeleteLead}
+        title="Delete Lead & Archive"
+        message={`Are you sure you want to delete the lead for "${deletingLead?.company}"? This will drop it from the pipeline and instantly archive the company registry.`}
+        confirmText="Delete & Archive Company"
+        type="danger"
+      />
 
       <style jsx>{`
         .leads-list {
@@ -131,12 +220,83 @@ const LeadsPage = ({ setSystemStatus }) => {
           font-weight: 600;
         }
         .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; }
+
+        /* Modal Styles */
+        .modal-overlay {
+          position: fixed;
+          top: 0; left: 0; right: 0; bottom: 0;
+          background: rgba(0, 0, 0, 0.6);
+          backdrop-filter: blur(8px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+        }
+        .modal-content {
+          background: rgba(20, 24, 40, 0.95);
+          width: 100%;
+          max-width: 450px;
+          padding: 2.5rem;
+          border-radius: 24px;
+        }
+        .modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 2rem;
+        }
+        .modal-header h2 { font-size: 1.5rem; font-weight: 800; }
+        .close-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; }
+        .glass-input {
+          width: 100%;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid var(--glass-border);
+          border-radius: 12px;
+          padding: 0.85rem 1.25rem;
+          color: white;
+          outline: none;
+          transition: border-color 0.2s;
+        }
+        .glass-input:focus { border-color: var(--accent-primary); }
+        .input-field label {
+          display: block;
+          font-size: 0.8rem;
+          font-weight: 800;
+          text-transform: uppercase;
+          color: var(--text-muted);
+          margin-bottom: 0.75rem;
+          letter-spacing: 0.05em;
+        }
+        .modal-footer {
+          margin-top: 2.5rem;
+          display: flex;
+          justify-content: flex-end;
+          gap: 1rem;
+        }
+        .primary-btn {
+          padding: 0.85rem 1.75rem;
+          background: var(--accent-primary);
+          color: white;
+          border: none;
+          border-radius: 12px;
+          font-weight: 800;
+          cursor: pointer;
+        }
+        .secondary-btn {
+           padding: 0.85rem 1.75rem;
+           background: rgba(255, 255, 255, 0.05);
+           color: var(--text-main);
+           border: 1px solid var(--glass-border);
+           border-radius: 12px;
+           font-weight: 800;
+           cursor: pointer;
+        }
       `}</style>
     </div>
   );
 };
 
-const LeadCard = ({ lead, isExpanded, onToggle, onPromote, refresh }) => {
+const LeadCard = ({ lead, isExpanded, onToggle, onPromote, refresh, onDelete }) => {
   return (
     <div className={`lead-card glass animate-fade-in ${isExpanded ? 'expanded' : ''}`}>
       <div className="lead-main" onClick={onToggle}>
@@ -163,6 +323,13 @@ const LeadCard = ({ lead, isExpanded, onToggle, onPromote, refresh }) => {
               onClick={(e) => { e.stopPropagation(); onPromote(); }}
             >
               Promote to Deal
+            </button>
+            <button 
+              className="btn-icon mini delete-card-btn" 
+              onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              title="Delete Lead & Archive"
+            >
+              <Trash2 size={16} />
             </button>
             <button className="btn-icon mini" title="View Logs">
               {isExpanded ? <ChevronUp size={20} /> : <MessageSquare size={18} />}
@@ -272,6 +439,10 @@ const LeadCard = ({ lead, isExpanded, onToggle, onPromote, refresh }) => {
           gap: 1.25rem;
           align-items: center;
         }
+
+        .delete-card-btn { color: var(--text-muted); opacity: 0; pointer-events: none; transition: all 0.2s; }
+        .lead-main:hover .delete-card-btn { opacity: 1; pointer-events: auto; }
+        .delete-card-btn:hover { color: var(--accent-danger); border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.1); }
 
         .lead-details {
           padding: 0 2rem 2.5rem 2rem;

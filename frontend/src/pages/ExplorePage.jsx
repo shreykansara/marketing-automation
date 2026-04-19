@@ -103,8 +103,7 @@ const ExplorePage = ({ setSystemStatus }) => {
         <div className="stats-alert glass animate-fade-in">
           <CheckCircle2 size={18} color="var(--accent-success)" />
           <span>
-            Successfully ingested <strong>{lastStats.ingested}</strong> articles 
-            ({lastStats.new_count} unique). All records enriched via AI.
+            Intelligence scan complete. Successfully curated <strong>{lastStats.enriched_count}</strong> high-intent signals for your registry.
           </span>
           <button className="close-btn" onClick={() => setLastStats(null)}><X size={18} /></button>
         </div>

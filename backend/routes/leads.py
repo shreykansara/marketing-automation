@@ -2,7 +2,7 @@ import uuid
 from fastapi import APIRouter, HTTPException, Body
 from datetime import datetime, timezone
 from bson import ObjectId
-from backend.core.db import leads_collection, signals_collection
+from backend.core.db import leads_collection, signals_collection, deals_collection, companies
 from backend.services.leads.aggregator import update_lead_for_company
 
 router = APIRouter()
@@ -51,6 +51,7 @@ async def get_leads():
     processed_leads = []
     for l in leads:
         l["_id"] = str(l["_id"])
+        l["company_id"] = str(l.get("company_id", ""))
         l["signal_ids"] = [str(sid) for sid in l["signal_ids"]]
         l["emails"] = [str(eid) for eid in l.get("emails", [])]
         
@@ -97,5 +98,83 @@ async def delete_lead_log(lead_id: str, log_id: str):
     
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Lead not found")
+        
+    return {"status": "success"}
+
+@router.post("/manual")
+async def add_manual_lead(company_name: str = Body(..., embed=True)):
+    """
+    Manually inject a company into the leads pipeline.
+    Ensures Deals exclusivity. Registers company if new.
+    """
+    company_clean = company_name.strip().lower()
+    if not company_clean:
+         raise HTTPException(status_code=400, detail="Company name cannot be empty")
+
+    # 1. Check if Deal exists
+    deal = deals_collection.find_one({"company": company_clean})
+    if deal:
+         raise HTTPException(status_code=400, detail="A deal for this company already exists.")
+
+    # 2. Check if Lead already exists
+    lead = leads_collection.find_one({"company": company_clean})
+    if lead:
+         raise HTTPException(status_code=400, detail="A lead for this company already exists.")
+
+    # 3. Create or update Company registry
+    company_res = companies.find_one_and_update(
+        {"name": company_clean},
+        {
+            "$set": {
+                "is_lead_active": True,
+                "is_deal_active": False,
+                "is_archived": False
+            },
+            "$setOnInsert": {"email_ids": [], "first_seen_at": datetime.now(timezone.utc)}
+        },
+        upsert=True,
+        return_document=True
+    )
+    company_id = company_res["_id"]
+
+    # 4. Insert into Leads
+    lead_doc = {
+        "company": company_clean,
+        "company_id": company_id,
+        "signal_ids": [],
+        "emails": [],
+        "logs": [
+            {
+                "log_id": str(uuid.uuid4()),
+                "timestamp": datetime.now(timezone.utc),
+                "type": "MANUAL_LEAD",
+                "message": "Manually added to leads pipeline.",
+                "metadata": {}
+            }
+        ]
+    }
+    leads_collection.insert_one(lead_doc)
+    return {"status": "success", "message": "Lead created successfully"}
+
+@router.delete("/{lead_id}")
+async def delete_lead(lead_id: str):
+    """
+    Delete a lead and automatically archive the associated company.
+    """
+    lead = leads_collection.find_one({"_id": ObjectId(lead_id)})
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+        
+    company_id = lead.get("company_id")
+    
+    # 1. Delete the lead
+    leads_collection.delete_one({"_id": ObjectId(lead_id)})
+    
+    # 2. Archive the company
+    if company_id:
+        companies.update_one(
+            {"_id": ObjectId(company_id)},
+            {"$set": {"is_archived": True, "is_lead_active": False}}
+        )
         
     return {"status": "success"}

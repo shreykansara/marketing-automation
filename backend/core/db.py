@@ -19,7 +19,7 @@ signals_collection = db["signals"]
 leads_collection = db["leads"]
 deals_collection = db["deals"]
 emails_collection = db["emails"]
-companies_collection = db["companies"]
+companies = db["companies"]
 
 def init_db():
     """Initialize indexes and TTL according to new 5-collection schema."""
@@ -35,11 +35,13 @@ def init_db():
     signals_collection.create_index([("company_names", ASCENDING)])
     signals_collection.create_index([("category", ASCENDING)])
     
-    # 2. Leads: Unique company name
+    # 2. Leads: Unique company name + Relational link
     leads_collection.create_index([("company", ASCENDING)], unique=True)
+    leads_collection.create_index([("company_id", ASCENDING)])
     
-    # 3. Deals: Unique company name mapping
+    # 3. Deals: Unique company name mapping + Relational link
     deals_collection.create_index([("company", ASCENDING)], unique=True)
+    deals_collection.create_index([("company_id", ASCENDING)])
 
     # 4. Emails: Unified lookup
     emails_collection.create_index([("sender", ASCENDING)])
@@ -48,8 +50,8 @@ def init_db():
     emails_collection.create_index([("is_logged", ASCENDING)])
     
     # 5. Companies: Unified point of truth
-    companies_collection.create_index([("name", ASCENDING)], unique=True)
-    companies_collection.create_index([("email_ids", ASCENDING)])
+    companies.create_index([("name", ASCENDING)], unique=True)
+    companies.create_index([("email_ids", ASCENDING)])
     
     print("Database structure refactored. 5 collections initialized with indexes.")
 
