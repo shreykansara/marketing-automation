@@ -48,20 +48,25 @@ const DealsPage = ({ setSystemStatus }) => {
           <p className="header-desc">Prioritize and track high-urgency business deals</p>
         </div>
         
-        <div className="header-actions">
-          <button className="btn btn-outline" onClick={async () => {
-            setSystemStatus('processing');
-            try {
-              await fetch('http://127.0.0.1:8000/api/leads/generate', { method: 'POST' });
-              await fetchDeals();
-              setSystemStatus('idle');
-            } catch (err) { setSystemStatus('error'); }
-          }}>
+        <div className="header-actions glass">
+          <button 
+            className="action-btn-icon" 
+            title="Sync Intelligence"
+            onClick={async () => {
+              setSystemStatus('processing');
+              try {
+                await fetch('http://127.0.0.1:8000/api/leads/generate', { method: 'POST' });
+                await fetchDeals();
+                setSystemStatus('idle');
+              } catch (err) { setSystemStatus('error'); }
+            }}
+          >
             <TrendingUp size={18} />
-            Sync Intelligence
           </button>
           
-          <div className="toggle-group glass">
+          <div className="divider"></div>
+
+          <div className="toggle-group">
             <button 
               className={`toggle-btn ${sortMode === 'weighted' ? 'active' : ''}`}
               onClick={() => setSortMode('weighted')}
@@ -101,19 +106,52 @@ const DealsPage = ({ setSystemStatus }) => {
       </div>
 
       <style jsx>{`
-        .toggle-group {
+        .header-actions {
           display: flex;
+          align-items: center;
           padding: 0.35rem;
           border-radius: 14px;
+          gap: 0.5rem;
+        }
+        
+        .action-btn-icon {
+          width: 36px;
+          height: 36px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: none;
+          border: none;
+          color: var(--text-muted);
+          cursor: pointer;
+          border-radius: 10px;
+          transition: all 0.2s;
+        }
+        
+        .action-btn-icon:hover {
+          background: rgba(255, 255, 255, 0.05);
+          color: var(--text-main);
+        }
+
+        .divider {
+          width: 1px;
+          height: 20px;
+          background: var(--glass-border);
+          margin: 0 0.25rem;
+        }
+
+        .toggle-group {
+          display: flex;
           gap: 0.25rem;
         }
+        
         .toggle-btn {
-          padding: 0.6rem 1.25rem;
+          padding: 0.5rem 1rem;
           border: none;
           background: none;
           color: var(--text-muted);
           font-weight: 800;
-          font-size: 0.85rem;
+          font-size: 0.8rem;
           cursor: pointer;
           border-radius: 10px;
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -121,7 +159,7 @@ const DealsPage = ({ setSystemStatus }) => {
         .toggle-btn.active {
           background: var(--accent-primary);
           color: white;
-          box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+          box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
         }
         .deals-list {
           display: flex;

@@ -12,6 +12,7 @@ import {
   Loader2,
   AlertCircle
 } from 'lucide-react';
+import ConfirmModal from '../components/ConfirmModal';
 
 const LeadsPage = ({ setSystemStatus }) => {
   const [leads, setLeads] = useState([]);
@@ -107,8 +108,8 @@ const LeadsPage = ({ setSystemStatus }) => {
         ) : !error && (
           <div className="empty-state glass">
             <Users size={48} />
-            <h3>No Leads Found</h3>
-            <p>Try syncing intelligence or scanning new signals.</p>
+            <h3>No leads are available currently</h3>
+            <p>Try syncing intelligence or scanning new signals to populate your list.</p>
           </div>
         )}
       </div>
@@ -285,6 +286,7 @@ const LeadCard = ({ lead, isExpanded, onToggle, onPromote, refresh }) => {
 export const LogManager = ({ type, parentId, logs, onUpdate }) => {
   const [newLog, setNewLog] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, logId: null });
 
   const handleAddLog = async () => {
     if (!newLog.trim()) return;
@@ -305,19 +307,28 @@ export const LogManager = ({ type, parentId, logs, onUpdate }) => {
     }
   };
 
-  const handleDeleteLog = async (logId) => {
-    if (!window.confirm("Are you sure you want to permanently delete this intelligence log?")) return;
+  const confirmDelete = async () => {
+    const { logId } = deleteModal;
     try {
       const endpoint = `http://127.0.0.1:8000/api/${type}s/${parentId}/logs/${logId}`;
       const res = await fetch(endpoint, { method: 'DELETE' });
       if (res.ok) onUpdate();
     } catch (err) {
       console.error("Log delete failed", err);
+    } finally {
+      setDeleteModal({ isOpen: false, logId: null });
     }
   };
 
   return (
     <div className="log-manager">
+      <ConfirmModal 
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, logId: null })}
+        onConfirm={confirmDelete}
+        title="Delete Intelligence Log"
+        message="This action will permanently remove this entry from the activity timeline. This cannot be undone."
+      />
       <div className="log-header">
         <History size={18} />
         <span className="outfit">Activity Timeline</span>
@@ -337,7 +348,7 @@ export const LogManager = ({ type, parentId, logs, onUpdate }) => {
               </div>
               <button 
                 className="btn-icon mini delete-btn" 
-                onClick={() => handleDeleteLog(log.log_id)}
+                onClick={() => setDeleteModal({ isOpen: true, logId: log.log_id })}
                 title="Delete Intelligence Log"
               >
                 <Trash2 size={14} />

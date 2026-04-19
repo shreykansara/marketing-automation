@@ -34,15 +34,6 @@ def update_lead_for_company(company: str):
             {
                 "$set": {
                     "signal_ids": signal_ids,
-                },
-                "$push": {
-                    "logs": {
-                        "log_id": str(uuid.uuid4()),
-                        "timestamp": datetime.now(timezone.utc),
-                        "type": "SIGNAL_UPDATE",
-                        "message": f"Aggregated {len(signals)} total signals.",
-                        "metadata": {"count": len(signals)}
-                    }
                 }
             }
         )
