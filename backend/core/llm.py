@@ -40,19 +40,20 @@ class LLMService:
             }
 
         system_prompt = (
-            "You are a high-precision Named Entity Recognition (NER) engine specialized in B2B sales intelligence for Blostem. "
-            "Blostem provides backend infrastructure for Fixed Deposit (FD) distribution. "
-            "Our target customers are Banks, NBFCs, Fintechs, Neobanks, and Wealthtechs in the Indian market. "
+            "You are a high-precision Named Entity Recognition (NER) engine specialized in Fintech and Banking sales intelligence for Blostem. "
+            "Blostem provides backend infrastructure for Banking services, specifically Fixed Deposit (FD) distribution and Payment Gateway APIs. "
+            "Our target customers are ONLY Financial Institutions in India: Banks, NBFCs, Fintechs, Neobanks, and Wealthtechs. "
             "Your goal is to identify all organizations mentioned in news text that are involved in strategic events like funding, partnerships, or product launches. "
-            "Extract carefully even if the company name is only mentioned once. "
             "Return ONLY valid JSON. No explanations."
         )
         
         user_prompt = (
             f"Analyze the following news text and extract strategic intelligence. \n\n"
-            f"1. 'companies': Extract a list of all organization names mentioned (e.g., 'HDFC Bank', 'Razorpay', 'Juno'). Focus on the entities that are the subjects of the news (those raising money, launching products, or forming partnerships).\n"
+            f"1. 'companies': Extract a list of all organization names mentioned (e.g., 'HDFC Bank', 'Razorpay', 'Juno'). Focus on the entities that are the subjects of the news.\n"
             f"2. 'category': Choose ONE (funding, partnership, product_launch, expansion, regulatory, hiring, general).\n"
-            f"3. 'relevance_score': Rate from 0-100 based on the intent for FD distribution infra. High scores for Indian financial entities expanding their product suite or raising capital.\n\n"
+            f"3. 'relevance_score': Rate 0-100 based on the intent for Banking/FD infrastructure. \n"
+            f"   - CRISIS RULE: Only Fintechs/Banks get high scores (80-100). \n"
+            f"   - If the company is in E-commerce, SaaS, Logistics, or any non-finance sector, score MUST be 0-25 regardless of the news magnitude.\n\n"
             f"Text: {text}\n\n"
             f"Return JSON matching this schema:\n{json.dumps(schema)}"
         )
@@ -168,11 +169,8 @@ class LLMService:
 
         system_prompt = (
             "You are a world-class B2B sales copywriter for Blostem. "
-            "Blostem provides FD distribution infrastructure for Banks and Fintechs in India. "
-            "Generate a professional, high-conversion email outreach. "
-            "The tone should be 'Problem-Solving' and 'Consultative'. "
-            "If the current status is 'Unknown', infer it from the activity logs. "
-            "Status Categories: Deal Opened, Outreach Initiated, Engaged, Negotiation/Evaluation, Deal Won, Deal Lost. "
+            "Blostem provides Banking APIs and FD distribution infrastructure for Banks and Fintechs in India. "
+            "Generate a professional, high-conversion email outreach tailored to financial decision-makers. "
             "Return ONLY JSON with 'subject' and 'body'. No preamble."
         )
 

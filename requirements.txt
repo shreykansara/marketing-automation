@@ -1,0 +1,17 @@
+fastapi
+uvicorn
+pymongo
+python-dotenv
+apscheduler
+httpx
+feedparser
+tenacity
+groq
+celery
+redis
+scikit-learn
+numpy
+scipy
+sentence-transformers
+gunicorn
+uvicorn[standard]

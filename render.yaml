@@ -1,7 +1,8 @@
 services:
-  # 1. Backend (API + Worker + Beat)
-  - type: web
-    name: blostem-backend
+  # 1. Background Worker (Worker + Beat)
+  # This service stays awake to process signals and tasks.
+  - type: worker
+    name: blostem-worker
     plan: free
     env: python
     buildCommand: "pip install -r backend/requirements.txt"
@@ -15,17 +16,3 @@ services:
         sync: false
       - key: NEWS_API_KEY
         sync: false
-      - key: FRONTEND_URL
-        sync: false
-        # When prompted, paste your Frontend static site URL (e.g. https://blostem-frontend.onrender.com)
-
-  # 2. Frontend (Static Site)
-  - type: web
-    name: blostem-frontend
-    runtime: static
-    buildCommand: "cd frontend && npm install && npm run build"
-    staticPublishPath: "frontend/dist"
-    envVars:
-      - key: VITE_API_URL
-        sync: false
-        # When prompted, paste your Backend web service URL (e.g. https://blostem-backend.onrender.com)
