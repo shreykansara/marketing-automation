@@ -198,4 +198,34 @@ class LLMService:
             print(f"[ERROR] LLM email generation failed: {e}")
             return {"subject": "Follow up: Blostem", "body": f"Error generating email: {str(e)}"}
 
+    def generate_email_log_suggestion(self, subject: str, body: str) -> str:
+        """
+        Generate a one-sentence sales log message based on an email's content.
+        """
+        if not self.client:
+            return "Email interaction captured."
+
+        system_prompt = (
+            "You are a sales assistant for Blostem. "
+            "Summarize the following email into a single, concise, professional sentence for a CRM activity log. "
+            "The log should describe the key interaction or outcome (e.g., 'Client requested a product demo', 'Sent introductory deck'). "
+            "Return ONLY the plain text sentence. No JSON."
+        )
+
+        user_prompt = f"Subject: {subject}\nBody: {body}\n\nSummarize this interaction."
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.3
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            print(f"[ERROR] LLM log generation failed: {e}")
+            return f"Processed email: {subject}"
+
 llm_service = LLMService()

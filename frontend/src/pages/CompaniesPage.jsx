@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Building2, 
-  Search, 
-  Mail, 
-  Plus, 
-  X, 
-  Save, 
+import {
+  Building2,
+  Search,
+  Mail,
+  Plus,
+  X,
+  Save,
   ArrowRight,
   TrendingUp,
   History,
@@ -102,13 +102,13 @@ const CompaniesPage = ({ setSystemStatus }) => {
 
         <div className="header-actions">
           <div className="view-toggles glass">
-            <button 
+            <button
               className={`toggle-btn ${viewFilter === 'active' ? 'active' : ''}`}
               onClick={() => setViewFilter('active')}
             >
               Active Organizations
             </button>
-            <button 
+            <button
               className={`toggle-btn ${viewFilter === 'archived' ? 'active' : ''}`}
               onClick={() => setViewFilter('archived')}
             >
@@ -118,9 +118,9 @@ const CompaniesPage = ({ setSystemStatus }) => {
 
           <div className="search-box glass">
             <Search size={18} />
-            <input 
-              type="text" 
-              placeholder="Filter registry..." 
+            <input
+              type="text"
+              placeholder="Filter registry..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -149,10 +149,10 @@ const CompaniesPage = ({ setSystemStatus }) => {
                 </div>
 
                 <div className="status-tags">
-                   {company.is_archived && <span className="tag archive-tag">Archived</span>}
-                   {!company.is_archived && company.is_deal_active && <span className="tag deal">Active Deal</span>}
-                   {!company.is_archived && company.is_lead_active && <span className="tag lead">Qualified Lead</span>}
-                   {!company.is_archived && !company.is_deal_active && !company.is_lead_active && <span className="tag registry">New Entry</span>}
+                  {company.is_archived && <span className="tag archive-tag">Archived</span>}
+                  {!company.is_archived && company.is_deal_active && <span className="tag deal">Active Deal</span>}
+                  {!company.is_archived && company.is_lead_active && <span className="tag lead">Qualified Lead</span>}
+                  {!company.is_archived && !company.is_deal_active && !company.is_lead_active && <span className="tag registry">New Entry</span>}
                 </div>
               </div>
 
@@ -162,14 +162,14 @@ const CompaniesPage = ({ setSystemStatus }) => {
                     <Mail size={16} />
                     <span>Contact Directory</span>
                     <div className="action-buttons">
-                      <button 
+                      <button
                         className="icon-btn tooltip-host"
                         onClick={() => toggleArchiveStatus(company)}
                       >
                         {company.is_archived ? <RefreshCw size={15} /> : <Archive size={15} />}
                         <span className="tooltip">{company.is_archived ? "Restore Focus" : "Archive Company"}</span>
                       </button>
-                      <button 
+                      <button
                         className="edit-btn"
                         onClick={() => {
                           setEditingCompany(company);
@@ -180,7 +180,7 @@ const CompaniesPage = ({ setSystemStatus }) => {
                       </button>
                     </div>
                   </div>
-                  
+
                   <div className="email-chips">
                     {company.email_ids && company.email_ids.length > 0 ? (
                       company.email_ids.map((email, idx) => (
@@ -196,11 +196,11 @@ const CompaniesPage = ({ setSystemStatus }) => {
           ))
         ) : (
           <div className="empty-state glass">
-             <Building2 size={48} />
-             <h3>{viewFilter === 'active' ? 'No active companies found' : 'No archived companies'}</h3>
-             <p>{viewFilter === 'active' 
-                ? 'The registry will automatically populate as new signals are ingested.' 
-                : 'Companies you archive will appear here.'}</p>
+            <Building2 size={48} />
+            <h3>{viewFilter === 'active' ? 'No active companies found' : 'No archived companies'}</h3>
+            <p>{viewFilter === 'active'
+              ? 'The registry will automatically populate as new signals are ingested.'
+              : 'Companies you archive will appear here.'}</p>
           </div>
         )}
       </div>
@@ -212,34 +212,34 @@ const CompaniesPage = ({ setSystemStatus }) => {
               <h2 className="outfit">Manage Identity: {editingCompany.name}</h2>
               <button className="close-btn" onClick={() => setEditingCompany(null)}><X size={20} /></button>
             </div>
-            
+
             <div className="modal-body">
               <div className="input-field">
                 <label>Add New Email ID</label>
                 <div className="inline-add">
-                   <input 
-                     type="email" 
-                     placeholder="identity@company.com"
-                     value={newEmail}
-                     onChange={(e) => setNewEmail(e.target.value)}
-                     onKeyPress={(e) => {
-                       if (e.key === 'Enter' && newEmail) {
-                          setEditingCompany({...editingCompany, email_ids: [...(editingCompany.email_ids || []), newEmail]});
-                          setNewEmail("");
-                       }
-                     }}
-                   />
-                   <button 
-                     className="add-btn-circle"
-                     onClick={() => {
-                       if (newEmail) {
-                         setEditingCompany({...editingCompany, email_ids: [...(editingCompany.email_ids || []), newEmail]});
-                         setNewEmail("");
-                       }
-                     }}
-                   >
-                     <Plus size={20} />
-                   </button>
+                  <input
+                    type="email"
+                    placeholder="identity@company.com"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && newEmail) {
+                        setEditingCompany({ ...editingCompany, email_ids: [...(editingCompany.email_ids || []), newEmail] });
+                        setNewEmail("");
+                      }
+                    }}
+                  />
+                  <button
+                    className="add-btn-circle"
+                    onClick={() => {
+                      if (newEmail) {
+                        setEditingCompany({ ...editingCompany, email_ids: [...(editingCompany.email_ids || []), newEmail] });
+                        setNewEmail("");
+                      }
+                    }}
+                  >
+                    <Plus size={20} />
+                  </button>
                 </div>
               </div>
 
@@ -251,7 +251,7 @@ const CompaniesPage = ({ setSystemStatus }) => {
                       <span>{email}</span>
                       <button onClick={() => {
                         setEditingCompany({
-                          ...editingCompany, 
+                          ...editingCompany,
                           email_ids: editingCompany.email_ids.filter((_, i) => i !== idx)
                         });
                       }}><X size={14} /></button>
@@ -262,19 +262,19 @@ const CompaniesPage = ({ setSystemStatus }) => {
             </div>
 
             <div className="modal-footer">
-               <button className="secondary-btn" onClick={() => setEditingCompany(null)}>Cancel</button>
-               <button 
-                className="primary-btn" 
+              <button className="secondary-btn" onClick={() => setEditingCompany(null)}>Cancel</button>
+              <button
+                className="primary-btn"
                 onClick={() => saveEmails(editingCompany._id, editingCompany.email_ids)}
-               >
-                 Save Changes
-               </button>
+              >
+                Save Changes
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      <ConfirmModal 
+      <ConfirmModal
         isOpen={!!archivingCompany}
         onClose={() => setArchivingCompany(null)}
         onConfirm={() => toggleArchiveStatus(archivingCompany, true)}
