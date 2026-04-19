@@ -16,16 +16,16 @@ services:
         sync: false
       - key: FRONTEND_URL
         fromService:
-          type: static
+          type: static_site
           name: blostem-frontend
           property: url
 
   # 2. Frontend (Static Site)
-  - type: static
+  - type: static_site
     name: blostem-frontend
-    env: node
+    env: static
     buildCommand: "cd frontend && npm install && npm run build"
-    publishPath: "frontend/dist"
+    staticPublishPath: "frontend/dist"
     envVars:
       - key: VITE_API_URL
         fromService:
