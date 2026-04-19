@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { LogManager } from './LeadsPage';
 import ConfirmModal from '../components/ConfirmModal';
+import { API_BASE_URL } from '../config';
 
 const DealsPage = ({ setSystemStatus }) => {
   const [deals, setDeals] = useState([]);
@@ -34,7 +35,7 @@ const DealsPage = ({ setSystemStatus }) => {
   const fetchDeals = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/deals');
+      const res = await fetch(`${API_BASE_URL}/api/deals`);
       const data = await res.json();
       setDeals(data);
     } catch (err) {
@@ -52,7 +53,7 @@ const DealsPage = ({ setSystemStatus }) => {
     if (!newDealCompany.trim()) return;
     try {
       setSystemStatus('processing');
-      const res = await fetch('http://127.0.0.1:8000/api/deals/manual', {
+      const res = await fetch(`${API_BASE_URL}/api/deals/manual`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ company_name: newDealCompany })
@@ -73,7 +74,7 @@ const DealsPage = ({ setSystemStatus }) => {
     if (!deletingDeal) return;
     try {
       setSystemStatus('processing');
-      const res = await fetch(`http://127.0.0.1:8000/api/deals/${deletingDeal._id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE_URL}/api/deals/${deletingDeal._id}`, { method: 'DELETE' });
       if (res.ok) {
         await fetchDeals();
         setSystemStatus('idle');
@@ -120,7 +121,7 @@ const DealsPage = ({ setSystemStatus }) => {
             onClick={async () => {
               setSystemStatus('processing');
               try {
-                await fetch('http://127.0.0.1:8000/api/leads/generate', { method: 'POST' });
+                await fetch(`${API_BASE_URL}/api/leads/generate`, { method: 'POST' });
                 await fetchDeals();
                 setSystemStatus('idle');
               } catch (err) { setSystemStatus('error'); }

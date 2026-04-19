@@ -10,6 +10,8 @@ import {
   X
 } from 'lucide-react';
 
+import { API_BASE_URL } from '../config';
+
 const ExplorePage = ({ setSystemStatus }) => {
   const [signals, setSignals] = useState([]);
   const [filteredSignals, setFilteredSignals] = useState([]);
@@ -32,7 +34,7 @@ const ExplorePage = ({ setSystemStatus }) => {
   const fetchSignals = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/signals');
+      const res = await fetch(`${API_BASE_URL}/api/signals`);
       const data = await res.json();
       setSignals(data);
     } catch (err) {
@@ -64,7 +66,7 @@ const ExplorePage = ({ setSystemStatus }) => {
     setGenerating(true);
     setSystemStatus('processing');
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/signals/generate', {
+      const res = await fetch(`${API_BASE_URL}/api/signals/generate`, {
         method: 'POST'
       });
       const stats = await res.json();

@@ -14,6 +14,7 @@ import {
   X
 } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
+import { API_BASE_URL } from '../config';
 
 const LeadsPage = ({ setSystemStatus }) => {
   const [leads, setLeads] = useState([]);
@@ -33,7 +34,7 @@ const LeadsPage = ({ setSystemStatus }) => {
     setError(null);
     try {
       // Standardize to 127.0.0.1 to avoid localhost vs 127.0.0.1 issues
-      const res = await fetch('http://127.0.0.1:8000/api/leads');
+      const res = await fetch(`${API_BASE_URL}/api/leads`);
       if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
       const data = await res.json();
       setLeads(data);
@@ -48,7 +49,7 @@ const LeadsPage = ({ setSystemStatus }) => {
   const handlePromote = async (leadId) => {
     setSystemStatus('processing');
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/deals/promote', {
+      const res = await fetch(`${API_BASE_URL}/api/deals/promote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ lead_id: leadId })
@@ -67,7 +68,7 @@ const LeadsPage = ({ setSystemStatus }) => {
     if (!newLeadCompany.trim()) return;
     try {
       setSystemStatus('processing');
-      const res = await fetch('http://127.0.0.1:8000/api/leads/manual', {
+      const res = await fetch(`${API_BASE_URL}/api/leads/manual`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ company_name: newLeadCompany })
@@ -88,7 +89,7 @@ const LeadsPage = ({ setSystemStatus }) => {
     if (!deletingLead) return;
     try {
       setSystemStatus('processing');
-      const res = await fetch(`http://127.0.0.1:8000/api/leads/${deletingLead._id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE_URL}/api/leads/${deletingLead._id}`, { method: 'DELETE' });
       if (res.ok) {
         await fetchLeads();
         setSystemStatus('idle');
@@ -105,7 +106,7 @@ const LeadsPage = ({ setSystemStatus }) => {
   const regenerateLeads = async () => {
     setSystemStatus('processing');
     try {
-      await fetch('http://127.0.0.1:8000/api/leads/generate', { method: 'POST' });
+      await fetch(`${API_BASE_URL}/api/leads/generate`, { method: 'POST' });
       await fetchLeads();
       setSystemStatus('idle');
     } catch (err) {
@@ -463,7 +464,7 @@ export const LogManager = ({ type, parentId, logs, onUpdate }) => {
     if (!newLog.trim()) return;
     setSubmitting(true);
     try {
-      const endpoint = `http://127.0.0.1:8000/api/${type}s/${parentId}/logs`;
+      const endpoint = `${API_BASE_URL}/api/${type}s/${parentId}/logs`;
       await fetch(endpoint, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -481,7 +482,7 @@ export const LogManager = ({ type, parentId, logs, onUpdate }) => {
   const confirmDelete = async () => {
     const { logId } = deleteModal;
     try {
-      const endpoint = `http://127.0.0.1:8000/api/${type}s/${parentId}/logs/${logId}`;
+      const endpoint = `${API_BASE_URL}/api/${type}s/${parentId}/logs/${logId}`;
       const res = await fetch(endpoint, { method: 'DELETE' });
       if (res.ok) onUpdate();
     } catch (err) {

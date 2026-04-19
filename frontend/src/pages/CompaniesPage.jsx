@@ -14,6 +14,7 @@ import {
   Info
 } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
+import { API_BASE_URL } from '../config';
 
 const CompaniesPage = ({ setSystemStatus }) => {
   const [companies, setCompanies] = useState([]);
@@ -31,7 +32,7 @@ const CompaniesPage = ({ setSystemStatus }) => {
   const fetchCompanies = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/companies');
+      const res = await fetch(`${API_BASE_URL}/api/companies`);
       const data = await res.json();
       setCompanies(data);
     } catch (err) {
@@ -44,7 +45,7 @@ const CompaniesPage = ({ setSystemStatus }) => {
   const saveEmails = async (companyId, emails) => {
     try {
       setSystemStatus('processing');
-      const res = await fetch(`http://127.0.0.1:8000/api/companies/${companyId}/emails`, {
+      const res = await fetch(`${API_BASE_URL}/api/companies/${companyId}/emails`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email_ids: emails })
@@ -69,7 +70,7 @@ const CompaniesPage = ({ setSystemStatus }) => {
 
     try {
       setSystemStatus('processing');
-      const res = await fetch(`http://127.0.0.1:8000/api/companies/${company._id}/archive`, {
+      const res = await fetch(`${API_BASE_URL}/api/companies/${company._id}/archive`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_archived: !company.is_archived })

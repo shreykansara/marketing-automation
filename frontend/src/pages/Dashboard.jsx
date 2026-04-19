@@ -10,6 +10,8 @@ import {
   MailWarning
 } from 'lucide-react';
 
+import { API_BASE_URL } from '../config';
+
 const Dashboard = () => {
   const [stats, setStats] = useState({ signals: 0, leads: 0, deals: 0 });
   const [alerts, setAlerts] = useState([]);
@@ -23,10 +25,10 @@ const Dashboard = () => {
   const fetchStats = async () => {
     try {
       const [sRes, lRes, dRes, eRes] = await Promise.all([
-        fetch('http://127.0.0.1:8000/api/signals'),
-        fetch('http://127.0.0.1:8000/api/leads'),
-        fetch('http://127.0.0.1:8000/api/deals'),
-        fetch('http://127.0.0.1:8000/api/emails')
+        fetch(`${API_BASE_URL}/api/signals`),
+        fetch(`${API_BASE_URL}/api/leads`),
+        fetch(`${API_BASE_URL}/api/deals`),
+        fetch(`${API_BASE_URL}/api/emails`)
       ]);
 
       const signals = await sRes.json();

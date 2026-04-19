@@ -12,6 +12,7 @@ import {
   ArrowRight,
   Tag
 } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 const EmailPage = () => {
   const [emails, setEmails] = useState([]);
@@ -27,7 +28,7 @@ const EmailPage = () => {
 
   const fetchCompanies = async () => {
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/companies');
+      const res = await fetch(`${API_BASE_URL}/api/companies`);
       const data = await res.json();
       setCompanies(data);
     } catch(err) {}
@@ -36,7 +37,7 @@ const EmailPage = () => {
   const fetchEmails = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/emails');
+      const res = await fetch(`${API_BASE_URL}/api/emails`);
       const data = await res.json();
       setEmails(data);
       if (data.length > 0 && !selectedEmail) {
@@ -76,7 +77,7 @@ const EmailPage = () => {
   const handleSuggestLog = async () => {
     setIsGeneratingLog(true);
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/emails/${selectedEmail._id}/suggest-log`);
+      const res = await fetch(`${API_BASE_URL}/api/emails/${selectedEmail._id}/suggest-log`);
       const data = await res.json();
       setSuggestedLog(data.suggestion);
       setShowLogInput(true);
@@ -90,7 +91,7 @@ const EmailPage = () => {
   const handleConfirmLog = async () => {
     try {
       setTagging(true); // Reusing tagging state for busy indicator
-      const res = await fetch(`http://127.0.0.1:8000/api/emails/${selectedEmail._id}/log`, {
+      const res = await fetch(`${API_BASE_URL}/api/emails/${selectedEmail._id}/log`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: suggestedLog })
@@ -117,7 +118,7 @@ const EmailPage = () => {
       }
       
       const payload = { company_id: tagCompanyId, company_email: extEmail };
-      const res = await fetch(`http://127.0.0.1:8000/api/emails/${selectedEmail._id}/company`, {
+      const res = await fetch(`${API_BASE_URL}/api/emails/${selectedEmail._id}/company`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
