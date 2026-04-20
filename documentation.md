@@ -113,3 +113,38 @@ The system is built as a high-density, glassmorphic Single Page Application.
 *   **Communications**: Unified inbox for interaction logging.
 
 **UX Integrity**: All destructive actions (e.g., Log Deletion) are protected by themed `ConfirmModal` UI components rather than browser alerts.
+
+---
+
+## 6. Local Development Setup
+
+Follow these steps to run the Blostem Intelligence Platform on your local machine.
+
+### 6.1 Prerequisites
+- **Node.js** (v18+)
+- **Python** (v3.9+)
+- **MongoDB** (A valid `MONGO_URI` in your `.env`)
+
+### 6.2 Step 1: Backend (API & Background Tasks)
+1. Navigate to the project root and ensure your virtual environment is active.
+2. **Start the API Server**:
+   ```bash
+   uvicorn backend.main:app --reload
+   ```
+   *Note: Periodic tasks (like email polling) now run automatically within the main API process.*
+
+### 6.3 Step 2: Frontend (React SPA)
+1. Navigate to the `frontend` directory:
+   ```bash
+   cd frontend
+   ```
+2. Install dependencies (if not already done):
+   ```bash
+   npm install
+   ```
+3. Start the Vite development server:
+   ```bash
+   npm run dev
+   ```
+   The application will be available at `http://localhost:5173`.
+

@@ -1,3 +1,5 @@
+import asyncio
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.routes import signals, leads, deals, emails, companies
@@ -6,12 +8,22 @@ from backend.core.logger import get_logger
 
 logger = get_logger("main")
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup logic
+    init_db()
+    logger.info("Application started and database initialized.")
+    yield
+    # Shutdown logic
+    logger.info("Application shutting down...")
+
 app = FastAPI(
     title="Blostem Intelligence Platform API",
     description="Refactored Sales Intelligence API for Signals, Leads, and Deals.",
     version="2.1",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
+    lifespan=lifespan
 )
 
 # Configure CORS
@@ -23,12 +35,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize DB on startup
-@app.on_event("startup")
-async def startup_event():
-    init_db()
-    logger.info("Application started and database initialized.")
-
 # Include Routes
 app.include_router(signals.router, prefix="/api/signals", tags=["Signals"])
 app.include_router(leads.router, prefix="/api/leads", tags=["Leads"])
@@ -38,4 +44,4 @@ app.include_router(companies.router, prefix="/api/companies", tags=["Companies"]
 
 @app.get("/")
 async def root():
-    return {"message": "Blostem Intelligence Platform API is online.", "version": "2.0"}
+    return {"message": "Blostem Intelligence Platform API (No-Celery Edition) is online.", "version": "2.1"}

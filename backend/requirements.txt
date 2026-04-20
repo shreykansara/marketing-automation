@@ -2,13 +2,11 @@ fastapi
 uvicorn
 pymongo
 python-dotenv
-apscheduler
 httpx
 feedparser
 tenacity
 groq
-celery
-redis
+scikit-learn
 scikit-learn
 numpy
 scipy

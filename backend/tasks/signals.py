@@ -1,6 +1,5 @@
 from bson import ObjectId
 from datetime import datetime, timezone
-from backend.core.celery_app import celery_app
 from backend.core.db import signals_collection, companies
 from backend.core.llm import llm_service
 from backend.core.logger import get_logger
@@ -15,7 +14,6 @@ def run_enrichment_pipeline_sync(signal_id: str):
     generate_embedding_task(signal_id, sync=True)
     enrich_signal_task(signal_id, sync=True)
 
-@celery_app.task(name="generate_embedding_task")
 def generate_embedding_task(signal_id: str, sync: bool = False):
     """
     Step 2: Generate embedding for the signal.
@@ -37,12 +35,11 @@ def generate_embedding_task(signal_id: str, sync: bool = False):
         )
         
         if not sync:
-            enrich_signal_task.delay(signal_id)
+            enrich_signal_task(signal_id)
         
     except Exception as e:
         logger.error(f"Embedding generation failed for {signal_id}: {e}")
 
-@celery_app.task(name="enrich_signal_task")
 def enrich_signal_task(signal_id: str, sync: bool = False):
     """
     Step 3: Extract company mentions and category using LLM.
