@@ -1,5 +1,5 @@
 import React from 'react';
-import { Briefcase, ChevronRight } from 'lucide-react';
+import { Briefcase, ChevronRight, Mail } from 'lucide-react';
 
 const DealList = ({ deals, selectedDeal, onSelectDeal }) => {
   return (
@@ -30,7 +30,20 @@ const DealList = ({ deals, selectedDeal, onSelectDeal }) => {
                   <div className={`status-dot status-${deal.status}`} />
                   <span style={{ fontWeight: 800, textTransform: 'capitalize' }}>{deal.company_name}</span>
                 </div>
-                <ChevronRight size={16} color="var(--text-muted)" />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <a 
+                    href={`https://mail.google.com/mail/u/0/#search/${encodeURIComponent(deal.company_name)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="btn-ghost"
+                    style={{ padding: '4px', display: 'flex', borderRadius: '4px' }}
+                    title="Search in Gmail"
+                  >
+                    <Mail size={14} color="var(--text-dim)" />
+                  </a>
+                  <ChevronRight size={16} color="var(--text-muted)" />
+                </div>
               </div>
               
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1rem', fontSize: '0.7rem' }}>

@@ -4,10 +4,8 @@ import { API_BASE_URL } from '../config';
 
 const DecisionView = ({ deal, onRefresh }) => {
   const [generating, setGenerating] = useState(false);
-  const [sending, setSending] = useState(false);
   const [emailDraft, setEmailDraft] = useState({ subject: '', body: '' });
   const [recipient, setRecipient] = useState('contact@company.com');
-
   const [syncing, setSyncing] = useState(false);
 
   // Reset state when selection changes
@@ -85,32 +83,6 @@ const DecisionView = ({ deal, onRefresh }) => {
     } catch (e) {
       console.error("Draft save failed", e);
     }
-  };
-
-  const handleSend = async () => {
-    setSending(true);
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/deals/${deal._id}/send-outreach`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to_email: recipient,
-          subject: emailDraft.subject,
-          body: emailDraft.body
-        })
-      });
-      if (res.ok) {
-        alert("Email sent successfully via SMTP!");
-        onRefresh();
-        setEmailDraft({ subject: '', body: '' });
-      } else {
-        const err = await res.json();
-        alert(`Error: ${err.detail}`);
-      }
-    } catch (e) {
-      console.error("Send failed", e);
-    }
-    setSending(false);
   };
 
   return (
@@ -232,17 +204,18 @@ const DecisionView = ({ deal, onRefresh }) => {
                 <button 
                   className="btn-premium btn-ghost" 
                   onClick={handleSaveDraft}
-                  disabled={sending}
                 >
                   Save Draft
                 </button>
-                <button 
-                  className="btn-premium btn-primary" 
-                  onClick={handleSend}
-                  disabled={sending}
+                <a 
+                  href={`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(recipient)}&su=${encodeURIComponent(emailDraft.subject)}&body=${encodeURIComponent(emailDraft.body)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-premium btn-primary"
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none' }}
                 >
-                  <Send size={18} /> {sending ? "Dispatching..." : "Send via SMTP"}
-                </button>
+                  <Send size={18} /> Open in Gmail
+                </a>
               </div>
             </div>
           )}
