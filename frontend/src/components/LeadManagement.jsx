@@ -84,23 +84,25 @@ const LeadManagement = ({ onConvertToDeal }) => {
                       ))}
                     </div>
                   </td>
-                  <td style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button 
-                      className="btn-premium btn-primary btn-sm"
-                      onClick={() => onConvertToDeal(lead._id)}
-                    >
-                      <UserPlus size={14} /> Promote
-                    </button>
-                    <a 
-                      href={`https://mail.google.com/mail/u/0/#search/${encodeURIComponent(lead.company)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn-premium btn-ghost btn-sm"
-                      title="Search in Gmail"
-                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px' }}
-                    >
-                      <Mail size={14} />
-                    </a>
+                  <td>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button 
+                        className="btn-premium btn-primary btn-sm"
+                        onClick={() => onConvertToDeal(lead._id)}
+                      >
+                        <UserPlus size={14} /> Promote
+                      </button>
+                      <a 
+                        href="https://mail.google.com/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn-premium btn-ghost btn-sm"
+                        title="Open Gmail"
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '32px' }}
+                      >
+                        <Mail size={14} />
+                      </a>
+                    </div>
                   </td>
                 </tr>
               ))

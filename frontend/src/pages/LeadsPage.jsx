@@ -11,7 +11,8 @@ import {
   Send,
   Loader2,
   AlertCircle,
-  X
+  X,
+  Mail
 } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
 import { API_BASE_URL } from '../config';
@@ -325,6 +326,16 @@ const LeadCard = ({ lead, isExpanded, onToggle, onPromote, refresh, onDelete }) 
             >
               Promote to Deal
             </button>
+            <a 
+              href="https://mail.google.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-icon mini"
+              onClick={(e) => e.stopPropagation()}
+              title="Open Gmail"
+            >
+              <Mail size={18} />
+            </a>
             <button 
               className="btn-icon mini delete-card-btn" 
               onClick={(e) => { e.stopPropagation(); onDelete(); }}

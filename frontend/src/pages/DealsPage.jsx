@@ -364,6 +364,16 @@ const DealCard = ({ deal, isExpanded, onToggle, refresh, onDelete }) => {
         <div className="deal-actions">
           <div className="action-stack">
             {deal.relevance >= 80 && <div className="hot-pulse-outer"><div className="hot-pulse-inner"></div></div>}
+            <a 
+              href="https://mail.google.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-icon mini"
+              onClick={(e) => e.stopPropagation()}
+              title="Open Gmail"
+            >
+              <Mail size={18} />
+            </a>
             <button 
               className="btn-icon mini delete-btn" 
               onClick={(e) => { e.stopPropagation(); onDelete(); }}

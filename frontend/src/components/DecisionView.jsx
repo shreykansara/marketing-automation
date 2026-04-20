@@ -208,7 +208,7 @@ const DecisionView = ({ deal, onRefresh }) => {
                   Save Draft
                 </button>
                 <a 
-                  href={`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(recipient)}&su=${encodeURIComponent(emailDraft.subject)}&body=${encodeURIComponent(emailDraft.body)}`}
+                  href="https://mail.google.com/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn-premium btn-primary"

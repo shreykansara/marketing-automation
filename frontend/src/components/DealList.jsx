@@ -32,13 +32,13 @@ const DealList = ({ deals, selectedDeal, onSelectDeal }) => {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                   <a 
-                    href={`https://mail.google.com/mail/u/0/#search/${encodeURIComponent(deal.company_name)}`}
+                    href="https://mail.google.com/"
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()}
                     className="btn-ghost"
                     style={{ padding: '4px', display: 'flex', borderRadius: '4px' }}
-                    title="Search in Gmail"
+                    title="Open Gmail"
                   >
                     <Mail size={14} color="var(--text-dim)" />
                   </a>
