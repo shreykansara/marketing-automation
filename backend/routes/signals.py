@@ -1,8 +1,8 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, BackgroundTasks
 from bson import ObjectId
 from backend.services.signals.fetchers import fetch_newsapi, fetch_rss
 from backend.services.signals.processor import process_raw_signals
-from backend.tasks.signals import run_enrichment_pipeline_sync
+from backend.tasks.signals import run_enrichment_pipeline_sync, process_enrichment_queue
 from backend.core.db import signals_collection
 from backend.core.logger import get_logger
 
@@ -10,12 +10,12 @@ router = APIRouter()
 logger = get_logger("routes.signals")
 
 @router.post("/generate")
-async def generate_signals():
+async def generate_signals(background_tasks: BackgroundTasks):
     """
-    Synchronous Signal Generation + Auto-Recovery.
+    Synchronous Signal Generation + Background AI Enrichment.
     1. Fetch new news/rss.
-    2. Identify stalled signals for retry.
-    3. Process new and recovered signals.
+    2. Identify stalled signals for recovery.
+    3. Trigger background enrichment.
     """
     logger.info("Signal generation + Auto-Recovery triggered.")
     
@@ -27,7 +27,6 @@ async def generate_signals():
     new_ids = stats.get("new_ids", [])
     
     # 2. Identify Stalled Signals (Self-Healing)
-    # Recover any that are not 'enriched' or 'pending' (Wait, category was pending, status was embedded/raw)
     stalled_docs = list(signals_collection.find({
         "status": {"$in": ["raw", "embedded", "enrichment_failed"]}
     }))
@@ -36,26 +35,16 @@ async def generate_signals():
     # Combine lists for enrichment attempt
     to_enrich = list(set(new_ids + stalled_ids))
     
-    # 3. Synchronous AI Enrichment
-    for sid in to_enrich:
-        try:
-            run_enrichment_pipeline_sync(sid)
-        except Exception as e:
-            logger.error(f"Recovery enrichment failed for {sid}: {e}")
-    
-    # 4. Final Count of Enriched Signals
-    # (Checking those that were actually part of this session's enrichment attempt)
-    final_enriched = signals_collection.count_documents({
-        "_id": {"$in": [ObjectId(sid) for sid in to_enrich]},
-        "status": "enriched"
-    })
+    # 3. Offload AI Enrichment to Background
+    if to_enrich:
+        background_tasks.add_task(process_enrichment_queue, to_enrich)
     
     return {
         "status": "success",
         "ingested": len(all_raw),
         "new_count": stats["new_count"],
         "duplicates_skipped": stats["duplicates"],
-        "enriched_count": final_enriched
+        "background_queue_count": len(to_enrich)
     }
 
 @router.get("/")

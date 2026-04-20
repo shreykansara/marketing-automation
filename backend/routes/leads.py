@@ -1,5 +1,4 @@
-import uuid
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Body, BackgroundTasks
 from datetime import datetime, timezone
 from bson import ObjectId
 from backend.core.db import leads_collection, signals_collection, deals_collection, companies
@@ -22,24 +21,32 @@ def derive_lead_relevance(lead):
     scores = [s.get("relevance_score", 0) for s in signals]
     return sum(scores) / len(scores)
 
+def process_leads_aggregation(unique_companies: list[str]):
+    """
+    Background worker for lead aggregation.
+    """
+    for company in unique_companies:
+        update_lead_for_company(company)
+
 @router.post("/generate")
-async def generate_leads():
+async def generate_leads(background_tasks: BackgroundTasks):
     """
     Use Case 3: Generate leads from the signals. 
-    Consolidates enriched signals into unique company leads.
+    Consolidates enriched signals into unique company leads via Background Tasks.
     """
     # 1. Get all unique company names from enriched signals
     enriched_signals = list(signals_collection.find({"status": "enriched"}))
-    unique_companies = set()
-    for s in enriched_signals:
-        for company in s.get("company_names", []):
-            unique_companies.add(company)
+    unique_companies = list(set([
+        company 
+        for s in enriched_signals 
+        for company in s.get("company_names", [])
+    ]))
             
-    # 2. Trigger aggregation for each company
-    for company in unique_companies:
-        update_lead_for_company(company)
+    # 2. Trigger aggregation in background
+    if unique_companies:
+        background_tasks.add_task(process_leads_aggregation, unique_companies)
         
-    return {"status": "success", "processed_companies": len(unique_companies)}
+    return {"status": "success", "queued_companies": len(unique_companies)}
 
 @router.get("/")
 async def get_leads():

@@ -14,6 +14,19 @@ def run_enrichment_pipeline_sync(signal_id: str):
     generate_embedding_task(signal_id, sync=True)
     enrich_signal_task(signal_id, sync=True)
 
+def process_enrichment_queue(signal_ids: list[str]):
+    """
+    Wrapper to process multiple signals in the background.
+    """
+    from backend.core.logger import get_logger
+    logger = get_logger("tasks.queue")
+    
+    for sid in signal_ids:
+        try:
+            run_enrichment_pipeline_sync(sid)
+        except Exception as e:
+            logger.error(f"Background enrichment failed for {sid}: {e}")
+
 def generate_embedding_task(signal_id: str, sync: bool = False):
     """
     Step 2: Generate embedding for the signal.
