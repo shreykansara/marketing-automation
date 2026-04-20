@@ -6,8 +6,7 @@ httpx
 feedparser
 tenacity
 groq
-scikit-learn
-scikit-learn
+python-dateutil
 numpy
 scipy
 sentence-transformers
