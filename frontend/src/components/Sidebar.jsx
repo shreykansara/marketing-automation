@@ -14,7 +14,7 @@ const Sidebar = () => {
     <aside className="sidebar glass">
       <div className="sidebar-header">
         <div className="logo-container">
-          <div className="logo-icon glass">B</div>
+          <img src="/logo.png" alt="Blostem Logo" className="logo-img glass" />
           <span className="logo-text outfit">Blostem AI</span>
         </div>
       </div>
@@ -53,16 +53,11 @@ const Sidebar = () => {
           gap: 0.75rem;
         }
 
-        .logo-icon {
+        .logo-img {
           width: 34px;
           height: 34px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: var(--accent-primary);
-          color: white;
-          font-weight: 900;
-          font-size: 1rem;
+          object-fit: contain;
+          padding: 4px;
           border-radius: 8px;
         }
 
