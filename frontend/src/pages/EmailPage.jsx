@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Mail, 
-  Search, 
-  ChevronRight, 
-  Clock, 
-  User, 
+import {
+  Mail,
+  Search,
+  ChevronRight,
+  Clock,
+  User,
   AlertCircle,
   Inbox,
   Send,
   Building2,
   ArrowRight,
-  Tag
+  Tag,
+  Trash2
 } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 
@@ -31,7 +32,7 @@ const EmailPage = () => {
       const res = await fetch(`${API_BASE_URL}/api/companies`);
       const data = await res.json();
       setCompanies(data);
-    } catch(err) {}
+    } catch (err) { }
   };
 
   const fetchEmails = async () => {
@@ -50,7 +51,7 @@ const EmailPage = () => {
     }
   };
 
-  const filteredEmails = emails.filter(e => 
+  const filteredEmails = emails.filter(e =>
     e.subject?.toLowerCase().includes(search.toLowerCase()) ||
     e.sender?.toLowerCase().includes(search.toLowerCase()) ||
     e.receiver?.toLowerCase().includes(search.toLowerCase()) ||
@@ -60,17 +61,17 @@ const EmailPage = () => {
   const [tagCompanyId, setTagCompanyId] = useState("");
   const [tagging, setTagging] = useState(false);
   const [isEditingTag, setIsEditingTag] = useState(false);
-  
+
   const [suggestedLog, setSuggestedLog] = useState("");
   const [isGeneratingLog, setIsGeneratingLog] = useState(false);
   const [showLogInput, setShowLogInput] = useState(false);
 
   useEffect(() => {
     if (selectedEmail) {
-       setTagCompanyId("");
-       setIsEditingTag(false);
-       setSuggestedLog("");
-       setShowLogInput(false);
+      setTagCompanyId("");
+      setIsEditingTag(false);
+      setSuggestedLog("");
+      setShowLogInput(false);
     }
   }, [selectedEmail]);
 
@@ -81,7 +82,7 @@ const EmailPage = () => {
       const data = await res.json();
       setSuggestedLog(data.suggestion);
       setShowLogInput(true);
-    } catch(e) {
+    } catch (e) {
       console.error(e);
     } finally {
       setIsGeneratingLog(false);
@@ -101,7 +102,7 @@ const EmailPage = () => {
         setSelectedEmail(prev => ({ ...prev, is_logged: true, is_loggable: false }));
         setShowLogInput(false);
       }
-    } catch(e) {
+    } catch (e) {
       console.error(e);
     } finally {
       setTagging(false);
@@ -114,9 +115,9 @@ const EmailPage = () => {
     try {
       let extEmail = selectedEmail.sender;
       if (selectedEmail.sender.toLowerCase().includes('blostem')) {
-         extEmail = selectedEmail.receiver;
+        extEmail = selectedEmail.receiver;
       }
-      
+
       const payload = { company_id: tagCompanyId, company_email: extEmail };
       const res = await fetch(`${API_BASE_URL}/api/emails/${selectedEmail._id}/company`, {
         method: 'PATCH',
@@ -126,17 +127,71 @@ const EmailPage = () => {
       if (res.ok) {
         const data = await res.json();
         await fetchEmails();
-        setSelectedEmail(prev => ({ 
-           ...prev, 
-           company_id: tagCompanyId, 
-           company_name: data.company_name 
+        setSelectedEmail(prev => ({
+          ...prev,
+          company_id: tagCompanyId,
+          company_name: data.company_name
         }));
         setIsEditingTag(false);
       }
-    } catch(e) {
+    } catch (e) {
       console.error(e);
     } finally {
       setTagging(false);
+    }
+  };
+
+  const handleDeleteEmail = async () => {
+    if (!selectedEmail) return;
+
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete this email? This action is permanent and cannot be undone."
+    );
+
+    if (!confirmDelete) return;
+
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_BASE_URL}/api/emails/${selectedEmail._id}`, {
+        method: 'DELETE'
+      });
+
+      if (res.ok) {
+        const remainingEmails = emails.filter(e => e._id !== selectedEmail._id);
+        setEmails(remainingEmails);
+        if (remainingEmails.length > 0) {
+          setSelectedEmail(remainingEmails[0]);
+        } else {
+          setSelectedEmail(null);
+        }
+      } else {
+        alert("Failed to delete email.");
+      }
+    } catch (err) {
+      console.error("Delete failed", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const [promoting, setPromoting] = useState(false);
+  const handlePromoteToLead = async () => {
+    if (!selectedEmail || !selectedEmail.company_name) return;
+    setPromoting(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/leads/manual`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ company_name: selectedEmail.company_name })
+      });
+      if (res.ok) {
+        await fetchEmails();
+        setSelectedEmail(prev => ({ ...prev, company_status: 'lead' }));
+      }
+    } catch (e) {
+      console.error("Promotion failed", e);
+    } finally {
+      setPromoting(false);
     }
   };
 
@@ -147,12 +202,12 @@ const EmailPage = () => {
           <h1 className="header-title outfit">Communication Engine</h1>
           <p className="header-desc">Unified inbox for all prospect interactions</p>
         </div>
-        
+
         <div className="search-bar glass">
           <Search size={16} color="var(--text-muted)" />
-          <input 
-            type="text" 
-            placeholder="Search conversations..." 
+          <input
+            type="text"
+            placeholder="Search conversations..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -165,20 +220,20 @@ const EmailPage = () => {
             <div className="empty-state"><div className="loader"></div></div>
           ) : filteredEmails.length > 0 ? (
             filteredEmails.map(email => (
-              <div 
-                key={email._id} 
-                className={`email-item glass-hover ${selectedEmail?._id === email._id ? 'active' : ''} ${!email.is_logged ? 'unlogged' : ''}`}
+              <div
+                key={email._id}
+                className={`email-item glass-hover ${selectedEmail?._id === email._id ? 'active' : ''} ${!email.is_logged ? 'unlogged' : ''} ${email.company_id && !['lead', 'deal'].includes(email.company_status) ? 'attention' : ''}`}
                 onClick={() => setSelectedEmail(email)}
               >
                 <div className="item-header">
                   <span className="item-sender">{email.sender}</span>
                   <span className="item-time">{new Date(email.timestamp).toLocaleDateString()}</span>
                 </div>
-                <div style={{marginBottom: '0.25rem'}}>
+                <div style={{ marginBottom: '0.25rem' }}>
                   {email.company_name ? (
-                     <span className="inline-tag active"><Building2 size={10} /> {email.company_name}</span>
+                    <span className="inline-tag active"><Building2 size={10} /> {email.company_name}</span>
                   ) : (
-                     <span className="inline-tag inactive"><Tag size={10} /> Unlinked</span>
+                    <span className="inline-tag inactive"><Tag size={10} /> Unlinked</span>
                   )}
                 </div>
                 <h4 className="item-subject">{email.subject}</h4>
@@ -187,6 +242,12 @@ const EmailPage = () => {
                   <div className="unlogged-badge">
                     <AlertCircle size={10} />
                     Needs Logging
+                  </div>
+                )}
+                {email.company_id && !['lead', 'deal'].includes(email.company_status) && (
+                  <div className="unlogged-badge attention">
+                    <AlertCircle size={10} />
+                    Needs Attention
                   </div>
                 )}
               </div>
@@ -202,8 +263,19 @@ const EmailPage = () => {
         <main className="email-view-pane glass">
           {selectedEmail ? (
             <div className="email-content animate-fade-in">
-              <div className="view-header">
-                <h2 className="outfit">{selectedEmail.subject}</h2>
+              <div className="view-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ flex: 1 }}>
+                  <h2 className="outfit">{selectedEmail.subject}</h2>
+                </div>
+                <button
+                  className="btn-icon-delete glass-hover"
+                  onClick={handleDeleteEmail}
+                  title="Delete Conversation"
+                >
+                  <Trash2 size={18} color="var(--accent-warning)" />
+                </button>
+              </div>
+              <div className="header-meta-container" style={{ marginTop: '-1.5rem', marginBottom: '2rem' }}>
                 <div className="view-meta">
                   <div className="meta-row">
                     <span className="meta-label">From:</span>
@@ -217,17 +289,17 @@ const EmailPage = () => {
                     <span className="meta-label">Date:</span>
                     <span className="meta-value">{new Date(selectedEmail.timestamp).toLocaleString()}</span>
                   </div>
-                  <div className="meta-row" style={{marginTop: '0.5rem'}}>
+                  <div className="meta-row" style={{ marginTop: '0.5rem' }}>
                     <span className="meta-label">Company:</span>
                     {selectedEmail.company_name ? (
-                       <div style={{display: 'flex', alignItems: 'center', gap: '0.75rem'}}>
-                         <span className="company-badge"><Building2 size={12} /> {selectedEmail.company_name}</span>
-                         <button className="btn-text" onClick={() => setIsEditingTag(!isEditingTag)} style={{fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)'}}>
-                           Manage Link
-                         </button>
-                       </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <span className="company-badge"><Building2 size={12} /> {selectedEmail.company_name}</span>
+                        <button className="btn-text" onClick={() => setIsEditingTag(!isEditingTag)} style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                          Manage Link
+                        </button>
+                      </div>
                     ) : (
-                       <span className="company-badge unlinked"><Tag size={12} /> Unlinked</span>
+                      <span className="company-badge unlinked"><Tag size={12} /> Unlinked</span>
                     )}
                   </div>
                 </div>
@@ -235,41 +307,59 @@ const EmailPage = () => {
 
               {(!selectedEmail.company_id || isEditingTag) && (
                 <div className="action-banner glass auth-tag-banner">
-                  <Tag size={20} color="var(--text-main)" style={{marginTop: '8px'}} />
+                  <Tag size={20} color="var(--text-main)" style={{ marginTop: '8px' }} />
                   <div className="manual-tag-form">
-                    <div style={{marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.95rem'}}>
-                        {isEditingTag ? 'Relink Conversation' : 'Link Conversation to Company'}
+                    <div style={{ marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.95rem' }}>
+                      {isEditingTag ? 'Relink Conversation' : 'Link Conversation to Company'}
                     </div>
-                    <div style={{fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem'}}>
-                       {isEditingTag 
-                         ? "Selecting a new company will securely unlink this email from the previous record." 
-                         : "Assigning this email automatically pushes the external email address to the company's registry."}
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+                      {isEditingTag
+                        ? "Selecting a new company will securely unlink this email from the previous record."
+                        : "Assigning this email automatically pushes the external email address to the company's registry."}
                     </div>
                     <div className="tag-controls">
-                      <select 
-                        className="glass-input small" 
-                        value={tagCompanyId} 
+                      <select
+                        className="glass-input small"
+                        value={tagCompanyId}
                         onChange={e => setTagCompanyId(e.target.value)}
                       >
-                         <option value="">Select Company...</option>
-                         {companies.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                        <option value="">Select Company...</option>
+                        {companies.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
                       </select>
-                      <button 
-                        className="btn btn-primary btn-sm" 
+                      <button
+                        className="btn btn-primary btn-sm"
                         disabled={!tagCompanyId || tagging}
                         onClick={handleTagSubmit}
                       >
-                         {tagging ? 'Linking...' : 'Link Email'}
+                        {tagging ? 'Linking...' : 'Link Email'}
                       </button>
                     </div>
                   </div>
                 </div>
               )}
 
+              {selectedEmail.company_id && !['lead', 'deal'].includes(selectedEmail.company_status) && (
+                <div className="action-banner glass pipeline-promo-banner animate-fade-in">
+                  <Building2 size={20} color="var(--accent-primary)" style={{ marginTop: '4px' }} />
+                  <div className="banner-flex">
+                    <div className="banner-text">
+                      <strong>Relationship Identified:</strong> This communication is linked to <strong>{selectedEmail.company_name}</strong>, but they are not yet in your active pipeline.
+                    </div>
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={handlePromoteToLead}
+                      disabled={promoting}
+                    >
+                      {promoting ? 'Promoting...' : 'Promote to Lead'} <ArrowRight size={14} />
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {selectedEmail.is_loggable && (
                 <div className="action-banner glass log-banner animate-fade-in">
-                  <Clock size={20} color="var(--accent-primary)" style={{marginTop: '4px'}} />
-                  <div style={{flex: 1}}>
+                  <Clock size={20} color="var(--accent-primary)" style={{ marginTop: '4px' }} />
+                  <div style={{ flex: 1 }}>
                     {!showLogInput ? (
                       <div className="banner-flex">
                         <div className="banner-text">
@@ -281,14 +371,14 @@ const EmailPage = () => {
                       </div>
                     ) : (
                       <div className="log-confirm-box">
-                        <div style={{marginBottom: '0.75rem', fontWeight: 600, fontSize: '0.9rem'}}>Suggested Timeline Entry:</div>
-                        <textarea 
+                        <div style={{ marginBottom: '0.75rem', fontWeight: 600, fontSize: '0.9rem' }}>Suggested Timeline Entry:</div>
+                        <textarea
                           className="glass-input log-textarea"
                           value={suggestedLog}
                           onChange={(e) => setSuggestedLog(e.target.value)}
                         />
                         <div className="log-footer">
-                          <button className="btn-text" onClick={() => setShowLogInput(false)} style={{fontSize: '0.8rem', color: 'var(--text-muted)'}}>Cancel</button>
+                          <button className="btn-text" onClick={() => setShowLogInput(false)} style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Cancel</button>
                           <button className="btn btn-primary btn-sm" onClick={handleConfirmLog} disabled={tagging}>
                             {tagging ? 'Logging...' : 'Confirm & Push to Pipeline'}
                           </button>
@@ -335,7 +425,8 @@ const EmailPage = () => {
         }
 
         .email-item.active { background: rgba(255, 255, 255, 0.05); }
-        .email-item.unlogged { border-l: 3px solid var(--accent-warning); }
+        .email-item.unlogged { border-left: 3px solid var(--accent-warning); }
+        .email-item.attention { border-left: 3px solid var(--accent-warning); }
 
         .item-header { display: flex; justify-content: space-between; margin-bottom: 0.25rem; font-size: 0.75rem; color: var(--text-muted); }
         .item-sender { font-weight: 700; color: var(--accent-primary); }
@@ -352,6 +443,10 @@ const EmailPage = () => {
           color: var(--accent-warning);
           text-transform: uppercase;
           letter-spacing: 0.05em;
+        }
+
+        .unlogged-badge.attention {
+          color: var(--accent-danger);
         }
 
         /* View Pane */
@@ -373,6 +468,12 @@ const EmailPage = () => {
           background: rgba(245, 158, 11, 0.1);
           border-color: rgba(245, 158, 11, 0.2);
         }
+
+        .pipeline-promo-banner {
+          background: rgba(99, 102, 241, 0.1);
+          border-color: rgba(99, 102, 241, 0.2);
+        }
+
         .banner-text { font-size: 0.9rem; flex: 1; }
         .btn-sm { padding: 0.5rem 1rem; font-size: 0.85rem; }
 
@@ -484,6 +585,23 @@ const EmailPage = () => {
           outline: none;
         }
         .glass-input.small option { background: var(--bg-deep); }
+
+        .btn-icon-delete {
+          background: rgba(239, 68, 68, 0.1);
+          border: 1px solid rgba(239, 68, 68, 0.2);
+          border-radius: 8px;
+          padding: 0.6rem;
+          cursor: pointer;
+          transition: all 0.2s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .btn-icon-delete:hover {
+          background: rgba(239, 68, 68, 0.2);
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+        }
       `}</style>
     </div>
   );

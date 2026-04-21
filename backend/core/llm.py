@@ -40,22 +40,27 @@ class LLMService:
             }
 
         system_prompt = (
-            "You are a high-precision Named Entity Recognition (NER) engine specialized in Fintech and Banking sales intelligence for Blostem. "
-            "Blostem provides backend infrastructure for Banking services, specifically Fixed Deposit (FD) distribution and Payment Gateway APIs. "
-            "Our target customers are ONLY Financial Institutions in India: Banks, NBFCs, Fintechs, Neobanks, and Wealthtechs. "
-            "Your goal is to identify all organizations mentioned in news text that are involved in strategic events like funding, partnerships, or product launches. "
-            "Return ONLY valid JSON. No explanations."
+            "You are a deterministic information extraction engine for Blostem. "
+            "Blostem focuses ONLY on Banks, NBFCs, Fintechs, Neobanks, and Wealthtech platforms in India. "
+            "Your job is to extract ONLY high-signal intelligence from noisy news text.\n\n"
+            "STRICT RULES:\n"
+            "1. Extract ONLY companies central to the event (ignore media, PR, irrelevant mentions).\n"
+            "2. Normalize company names (e.g., 'HDFC Bank Ltd.' → 'HDFC Bank').\n"
+            "3. Category MUST be one of: funding, partnership, product_launch, expansion, regulatory, hiring, general.\n"
+            "4. Relevance scoring:\n"
+            "   - 80–100: Indian fintech/banking infra activity\n"
+            "   - 40–79: indirect/global fintech relevance\n"
+            "   - 0–39: non-finance companies\n"
+            "   - If no relevant financial entity → score MUST be 0\n"
+            "5. Never hallucinate. If unsure, return empty values.\n"
+            "6. Output STRICT JSON only. No explanation."
         )
         
         user_prompt = (
-            f"Analyze the following news text and extract strategic intelligence. \n\n"
-            f"1. 'companies': Extract a list of all organization names mentioned (e.g., 'HDFC Bank', 'Razorpay', 'Juno'). Focus on the entities that are the subjects of the news.\n"
-            f"2. 'category': Choose ONE (funding, partnership, product_launch, expansion, regulatory, hiring, general).\n"
-            f"3. 'relevance_score': Rate 0-100 based on the intent for Banking/FD infrastructure. \n"
-            f"   - CRISIS RULE: Only Fintechs/Banks get high scores (80-100). \n"
-            f"   - If the company is in E-commerce, SaaS, Logistics, or any non-finance sector, score MUST be 0-25 regardless of the news magnitude.\n\n"
-            f"Text: {text}\n\n"
-            f"Return JSON matching this schema:\n{json.dumps(schema)}"
+            f"Extract structured intelligence from the following news.\n\n"
+            f"TEXT:\n\"\"\"\n{text}\n\"\"\"\n\n"
+            f"OUTPUT SCHEMA:\n{json.dumps(schema)}\n\n"
+            f"Return ONLY valid JSON."
         )
         
         try:
@@ -69,7 +74,6 @@ class LLMService:
             )
 
             raw_output = response.choices[0].message.content
-            # Safe parsing
             try:
                 data = json.loads(raw_output.lower())
             except:
@@ -89,23 +93,27 @@ class LLMService:
             }
 
     def analyze_deal_status(self, email_body: str, current_status: str) -> Dict[str, Any]:
-        """
-        Analyze an incoming email to suggest a pipeline status update.
-        """
         if not self.client:
             return {"suggested_status": current_status, "reason": "LLM offline"}
 
         system_prompt = (
-            "You are a sales intelligence expert. "
-            "Analyze the sentiment and intent of an incoming email reply to suggest a pipeline status change. "
-            "Exclusively use these statuses: open, contacted, replied, closed, archived. "
+            "You are a B2B sales pipeline intelligence engine for Blostem.\n\n"
+            "Allowed statuses:\n"
+            "- open\n- contacted\n- replied\n- closed\n- archived\n\n"
+            "DECISION RULES:\n"
+            "- Engagement (questions, interest, scheduling) → replied\n"
+            "- Neutral acknowledgment → replied\n"
+            "- Not interested → archived\n"
+            "- Purchase/demo confirmation → closed\n"
+            "- No response → keep as contacted\n\n"
+            "Do NOT assume optimism. Base ONLY on explicit intent.\n\n"
             "Return JSON with 'suggested_status' and 'reason'."
         )
         
         user_prompt = (
             f"Current Deal Status: {current_status}\n"
             f"Incoming Email Body: {email_body}\n\n"
-            f"Which status should this deal move to? provide a brief reason."
+            f"Determine the correct status update."
         )
 
         try:
@@ -124,9 +132,6 @@ class LLMService:
             return {"suggested_status": current_status, "reason": str(e)}
 
     def score_deal_logs(self, logs: list) -> int:
-        """
-        Analyze the 3 most recent logs to determine an intent/relevance score (0-100).
-        """
         if not self.client or not logs:
             return 0
             
@@ -134,13 +139,18 @@ class LLMService:
         logs_text = "\n".join([f"- [{l.get('timestamp')}] {l.get('type')}: {l.get('message')}" for l in recent_logs])
         
         system_prompt = (
-            "You are a sales prioritization expert for Blostem. "
-            "Based on activity logs, provide a RELEVANCE SCORE 0-100. "
-            "Return ONLY JSON: {'score': 0-100}."
+            "You are a deal prioritization engine for Blostem.\n\n"
+            "Score based on BUYING INTENT:\n"
+            "80–100: strong intent (demo, follow-ups, product questions)\n"
+            "50–79: moderate engagement\n"
+            "20–49: weak signals\n"
+            "0–19: no activity or negative\n\n"
+            "Recency > volume. Penalize inactivity.\n\n"
+            "Return ONLY JSON: {\"score\": number}"
         )
         
-        user_prompt = f"Activity Logs:\n{logs_text}\n\nScore this deal's current relevance."
-        
+        user_prompt = f"Activity Logs:\n{logs_text}\n\nScore this deal."
+
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -158,9 +168,6 @@ class LLMService:
             return 0
 
     def generate_outreach_email(self, logs: list, current_status: str, company_name: str) -> Dict[str, str]:
-        """
-        Generate a personalized email subject and body based on deal context.
-        """
         if not self.client:
             return {"subject": "AI Draft", "body": "LLM offline. Please check GROQ_API_KEY."}
 
@@ -168,17 +175,22 @@ class LLMService:
         logs_text = "\n".join([f"- {l.get('message')}" for l in recent_logs])
 
         system_prompt = (
-            "You are a world-class B2B sales copywriter for Blostem. "
-            "Blostem provides Banking APIs and FD distribution infrastructure for Banks and Fintechs in India. "
-            "Generate a professional, high-conversion email outreach tailored to financial decision-makers. "
-            "Return ONLY JSON with 'subject' and 'body'. No preamble."
+            "You are a top-tier fintech B2B sales copywriter for Blostem.\n\n"
+            "Blostem provides FD distribution infra and Banking APIs.\n\n"
+            "WRITING RULES:\n"
+            "1. Personalize using context\n"
+            "2. No fluff or generic openings\n"
+            "3. Strong hook + clear value + soft CTA\n"
+            "4. Tone: confident, concise, intelligent\n"
+            "5. Length: 80–150 words\n\n"
+            "Return JSON with 'subject' and 'body'."
         )
 
         user_prompt = (
             f"Company: {company_name}\n"
-            f"Current Pipeline State: {current_status}\n"
-            f"Recent Activity Logs:\n{logs_text}\n\n"
-            f"Generate a personalized outreach email to move this deal forward."
+            f"Stage: {current_status}\n"
+            f"Context Logs:\n{logs_text}\n\n"
+            f"Write a high-conversion outreach email."
         )
 
         try:
@@ -197,20 +209,19 @@ class LLMService:
             return {"subject": "Follow up: Blostem", "body": f"Error generating email: {str(e)}"}
 
     def generate_email_log_suggestion(self, subject: str, body: str) -> str:
-        """
-        Generate a one-sentence sales log message based on an email's content.
-        """
         if not self.client:
             return "Email interaction captured."
 
         system_prompt = (
-            "You are a sales assistant for Blostem. "
-            "Summarize the following email into a single, concise, professional sentence for a CRM activity log. "
-            "The log should describe the key interaction or outcome (e.g., 'Client requested a product demo', 'Sent introductory deck'). "
-            "Return ONLY the plain text sentence. No JSON."
+            "You are a CRM logging assistant.\n\n"
+            "Summarize into ONE precise sentence capturing action or outcome.\n\n"
+            "Rules:\n"
+            "- Max 20 words\n"
+            "- No fluff\n"
+            "- Plain text only"
         )
 
-        user_prompt = f"Subject: {subject}\nBody: {body}\n\nSummarize this interaction."
+        user_prompt = f"Subject: {subject}\nBody: {body}\n\nSummarize."
 
         try:
             response = self.client.chat.completions.create(

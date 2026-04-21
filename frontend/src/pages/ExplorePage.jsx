@@ -81,6 +81,23 @@ const ExplorePage = ({ setSystemStatus }) => {
     }
   };
 
+  const handleRetry = async (signalId) => {
+    try {
+      setSystemStatus('processing');
+      const res = await fetch(`${API_BASE_URL}/api/signals/${signalId}/retry`, {
+        method: 'POST'
+      });
+      if (res.ok) {
+        // Optimistic UI update or just refresh
+        setTimeout(fetchSignals, 500);
+      }
+      setSystemStatus('idle');
+    } catch (err) {
+      console.error("Retry failed", err);
+      setSystemStatus('error');
+    }
+  };
+
   const categories = ["all", ...new Set(signals.map(s => s.category?.toLowerCase()).filter(Boolean))];
 
   return (
@@ -105,14 +122,17 @@ const ExplorePage = ({ setSystemStatus }) => {
         <div className="stats-alert glass animate-fade-in">
           <CheckCircle2 size={18} color="var(--accent-success)" />
           <span>
-            Intelligence scan complete. Successfully curated <strong>{lastStats.enriched_count}</strong> high-intent signals for your registry.
+            {lastStats.ingested_count > 0 
+              ? (lastStats.message || `Intelligence scan complete. Found ${lastStats.ingested_count} new signals.`)
+              : "Your intelligence feed is up to date. No new market signals found at this time."
+            }
           </span>
           <button className="close-btn" onClick={() => setLastStats(null)}><X size={18} /></button>
         </div>
       )}
 
       <div className="filter-bar glass">
-        <div className="search-box">
+        <div className="search-box glass">
           <Search size={18} color="var(--text-muted)" />
           <input 
             type="text" 
@@ -147,7 +167,7 @@ const ExplorePage = ({ setSystemStatus }) => {
           </div>
         ) : filteredSignals.length > 0 ? (
           filteredSignals.map(signal => (
-            <SignalCard key={signal._id} signal={signal} />
+            <SignalCard key={signal._id} signal={signal} onRetry={handleRetry} />
           ))
         ) : (
           <div className="empty-state glass">
@@ -158,7 +178,7 @@ const ExplorePage = ({ setSystemStatus }) => {
         )}
       </div>
 
-      <style jsx>{`
+      <style>{`
         .spin { animation: spin 1s linear infinite; }
         
         .stats-alert {
@@ -192,10 +212,20 @@ const ExplorePage = ({ setSystemStatus }) => {
         }
 
         .search-box {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-          flex: 1;
+           display: flex;
+           align-items: center;
+           gap: 1rem;
+           flex: 1;
+           padding: 0.5rem 1.25rem;
+           border-radius: 12px;
+           background: rgba(255, 255, 255, 0.03);
+           border: 1px solid var(--glass-border);
+           transition: all 0.2s;
+        }
+
+        .search-box:focus-within {
+           border-color: var(--accent-primary);
+           background: rgba(255, 255, 255, 0.06);
         }
 
         .search-box input {
@@ -204,7 +234,7 @@ const ExplorePage = ({ setSystemStatus }) => {
           color: white;
           width: 100%;
           outline: none;
-          font-size: 1.1rem;
+          font-size: 1rem;
         }
 
         .filter-tools {
@@ -265,28 +295,51 @@ const ExplorePage = ({ setSystemStatus }) => {
   );
 };
 
-const SignalCard = ({ signal }) => {
+const SignalCard = ({ signal, onRetry }) => {
   const getRelevanceClass = (score) => {
     if (score >= 80) return 'high';
     if (score >= 40) return 'medium';
     return 'low';
   };
 
+  const isFailed = signal.status === 'failed';
+  const isRaw = signal.status === 'raw';
+  const isProcessing = signal.status === 'processing';
+
   return (
-    <div className="signal-card glass glass-hover animate-fade-in">
+    <div className={`signal-card glass glass-hover animate-fade-in ${isFailed ? 'failed-card' : ''}`}>
       <div className="card-header">
-        <div className={`relevance-badge ${getRelevanceClass(signal.relevance_score)}`}>
-          <Zap size={14} />
-          {signal.relevance_score}% Relevance
+        {signal.status === 'enriched' ? (
+          <div className={`relevance-badge ${getRelevanceClass(signal.relevance_score)}`}>
+            <Zap size={14} />
+            {signal.relevance_score}% Relevance
+          </div>
+        ) : (
+          <div className={`status-badge ${signal.status}`}>
+            {isProcessing ? <RefreshCw size={12} className="spin" /> : <Zap size={12} />}
+            {signal.status.toUpperCase()}
+          </div>
+        )}
+        <div className="header-actions-row">
+          {(isFailed || isRaw) && (
+            <button 
+              className="btn-icon mini retry-btn" 
+              onClick={() => onRetry(signal._id)} 
+              title="Retry AI Enrichment"
+            >
+              <RefreshCw size={14} />
+            </button>
+          )}
+          <a href={signal.url} target="_blank" rel="noreferrer" className="btn-icon mini">
+            <ExternalLink size={14} />
+          </a>
         </div>
-        <a href={signal.url} target="_blank" rel="noreferrer" className="btn-icon mini">
-          <ExternalLink size={14} />
-        </a>
       </div>
       
       <div className="card-body">
         <h3 className="signal-title outfit">{signal.title}</h3>
         <p className="signal-content">{signal.content}</p>
+        {isFailed && <div className="error-msg">Error: {signal.error || 'Pipeline interruption'}</div>}
       </div>
 
       <div className="card-footer">
@@ -294,15 +347,18 @@ const SignalCard = ({ signal }) => {
           <span className="signal-source">{signal.source}</span>
           <span className="dot">•</span>
           <span className="signal-date">
-            {new Date(signal.published || signal.created_at).toLocaleDateString()}
+            {new Date(signal.published_at || signal.created_at).toLocaleDateString()}
           </span>
         </div>
         <div className="company-pill">
-          {signal.company_names?.[0] || 'Unknown Origin'}
+          {signal.company_names?.length > 0 
+            ? signal.company_names[0] 
+            : (signal.relevance_score !== null ? 'None' : 'Scanning...')
+          }
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .signal-card {
           padding: 2rem;
           display: flex;
@@ -375,6 +431,25 @@ const SignalCard = ({ signal }) => {
           color: var(--text-main);
           border: 1px solid var(--glass-border);
         }
+
+        .status-badge {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          font-size: 0.7rem;
+          font-weight: 900;
+          padding: 0.4rem 0.75rem;
+          border-radius: 8px;
+          letter-spacing: 0.05em;
+        }
+        .status-badge.raw { background: rgba(255, 255, 255, 0.05); color: var(--text-muted); border: 1px solid var(--glass-border); }
+        .status-badge.processing { background: rgba(59, 130, 246, 0.1); color: var(--accent-info); border: 1px solid rgba(59, 130, 246, 0.2); }
+        .status-badge.failed { background: rgba(239, 68, 68, 0.1); color: var(--accent-danger); border: 1px solid rgba(239, 68, 68, 0.2); }
+
+        .header-actions-row { display: flex; gap: 0.5rem; }
+        .retry-btn:hover { color: var(--accent-primary); border-color: var(--accent-primary); background: rgba(99, 102, 241, 0.1); }
+        .failed-card { border: 1px solid rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.02); }
+        .error-msg { margin-top: 1rem; font-size: 0.75rem; color: var(--accent-danger); font-weight: 700; font-style: italic; opacity: 0.8; }
       `}</style>
     </div>
   );

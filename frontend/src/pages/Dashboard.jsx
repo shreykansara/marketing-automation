@@ -143,7 +143,7 @@ const Dashboard = () => {
         </section>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .last-sync {
           display: flex;
           align-items: center;

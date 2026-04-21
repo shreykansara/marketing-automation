@@ -2,6 +2,12 @@ import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+import os
+
+# Load .env from ROOT
+load_dotenv(os.path.join(os.path.dirname(__file__), '../.env'))
+
 from backend.routes import signals, leads, deals, emails, companies
 from backend.core.db import init_db
 from backend.core.logger import get_logger
@@ -26,11 +32,9 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    # Allow .vercel.app, .github.io, and localhost origins specifically to support credentials
-    allow_origin_regex=r"https://mail\.google\.com|https://.*\.vercel\.app|https://.*\.github\.io|http://localhost(:\d+)?|chrome-extension://.*",
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

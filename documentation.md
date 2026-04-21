@@ -8,108 +8,97 @@ The Blostem platform is an end-to-end sales intelligence engine designed to tran
 ## 2. Database Architecture (MongoDB)
 All collections reside within the `pipeline_db` (or as configured in `.env`).
 
-### 2.1 `signals`
+## 2. Database Architecture (MongoDB)
+All collections reside within the `pipeline_db` (or as configured in `.env`).
+
+### 2.1 `companies`
+The centralized master registry and source of truth for pipeline state.
+*   **`_id`**: Primary Key (ObjectID).
+*   **`name`**: Unique normalized company name (Unique Index).
+*   **`emails`**: List of associated contact email addresses.
+*   **`status`**: Mutual exclusivity state (`null` | `lead` | `deal`).
+*   **`flag`**: Active lifecycle state (`active` | `archived`).
+*   **`created_at`**: Timestamp of first registration.
+
+### 2.2 `signals`
 Stores ingested market data (RSS, News API) and their AI-enriched counterparts.
 *   **`_id`**: Primary Key (ObjectID).
+*   **`company_ids`**: List of Relational References to `companies._id`.
 *   **`hash`**: SHA-256 fingerprint for global deduplication (Unique Index).
 *   **`title` / `content` / `url` / `source`**: Core signal metadata.
-*   **`company_names`**: Array of normalized company names identified in the text.
 *   **`category`**: Strategic classification (Funding, M&A, Hires, etc.).
 *   **`relevance_score`**: AI-calculated intent score (0-100).
-*   **`status`**: State machine (`raw` → `embedded` → `enriched` → `enrichment_failed`).
-*   **`created_at`**: Internal timestamp for system lifecycle.
-*   **TTL**: Documents are automatically deleted after **5 days** (432,000 seconds) via a TTL index.
+*   **`status`**: State machine (`raw` → `embedded` → `enriched` → `failed`).
+*   **TTL**: Documents are automatically deleted after **5 days** via a TTL index.
 
-### 2.2 `leads`
+### 2.3 `leads`
 Consolidated company-level interest groups.
-*   **`company`**: Unique normalized company name (Index).
+*   **`_id`**: Primary Key (ObjectID).
 *   **`company_id`**: Foreign Key to `companies._id`.
-*   **`signal_ids`**: List of associated `signal._id` references.
-*   **`emails`**: List of associated `email._id` references.
-*   **`logs`**: Activity timeline (System events + Manual notes).
+*   **`relevance_score`**: Aggregate score derived from linked signals.
+*   **`status`**: Internal state (`active` | `archived`).
 
-### 2.3 `deals`
+### 2.4 `deals`
 The high-intent active sales pipeline.
-*   **`company`**: Unique normalized company name (Unique Index).
+*   **`_id`**: Primary Key (ObjectID).
 *   **`company_id`**: Foreign Key to `companies._id`.
-*   **`emails`**: List of associated `email._id` references.
-*   **`logs`**: Full audit trail of the deal lifecycle.
+*   **`lead_id`**: Reference to the original lead for history preservation.
 *   **`intent_score`**: Qualitative metric for prioritization.
-
-### 2.4 `companies`
-The centralized master registry for all organizations identified by the system.
-*   **`name`**: Unique normalized company name (Unique Index).
-*   **`first_seen_at`**: Timestamp of first identification.
-*   **`email_ids`**: List of associated contact email addresses.
-*   **`is_lead_active`**: Boolean flag for current lead status.
-*   **`is_deal_active`**: Boolean flag for current deal status.
-*   **`is_archived`**: Boolean flag for archived status (mutually exclusive with active states).
+*   **`stage_history`**: Array of timestamped transitions (e.g., Lead → Open → Contacted).
 
 ### 2.5 `emails`
-Unified storage for communication tracking.
+Unified content storage for communication tracking.
 *   **`sender` / `receiver`**: Participant addresses.
-*   **`body` / `subject`**: Content and metadata.
-*   **`timestamp`**: UTC transmission time.
-*   **`is_logged`**: Flag indicating if the email has been pushed to a pipeline timeline.
-*   **`company_id`**: Association with the master registry.
+*   **`body` / `subject`**: Content metadata.
+*   **`company_id`**: Relational link to the master registry.
+*   **`lead_id` / `deal_id`**: Optional links to specific pipeline entities.
+*   **`is_logged`**: Flag indicating if an AI summary has been pushed to the logs.
+
+### 2.6 `logs`
+**NEW**: Centralized activity timeline for all entities.
+*   **`entity_id`**: Relational Key pointing to either a Lead _id or Deal _id.
+*   **`timestamp`**: UTC time of the event.
+*   **`type`**: Event classification (`SYSTEM`, `MANUAL`, `EMAIL`, `SIGNAL`).
+*   **`message`**: Readable event description.
 
 ---
 
 ## 3. Core Lifecycle & Logic
 
-### 3.1 Relational Linkage (PK/FK)
-The platform uses the **Companies** collection as the primary registry. `Leads` and `Deals` documents store the parent company's `_id` in the `company_id` field. This ensures architectural consistency and enables unified communication history across the pipeline stages.
+### 3.1 Relational Normalization (Hydration)
+The platform has transitioned from embedded arrays to a normalized relational model. API responses utilize MongoDB `$lookup` aggregations to **hydrate** objects with necessary metadata (e.g., retrieving company names and activity timelines for a lead).
 
-### 3.2 Signal Processing
-Ingestion follows a strict path: Ingest → Hash → Embed → Enrich.
-During the **Enrichment** phase, any identified company name is automatically registered in the `companies` collection.
+### 3.2 Signal Ingestion
+During enrichment, the system resolves company mentions to `ObjectIds`. If a company is unknown, it is automatically created in the `companies` collection before the signal is linked.
 
-### 3.3 Exclusivity Rule
-A company is strictly exclusive to one pipeline stage:
-*   It can exist as a **Lead** OR a **Deal**, but never both.
-*   Promotion to a Deal triggers the immediate deletion of the Lead document and updates the `companies` active flags.
-
-### 3.4 Lead Promotion
-When a Lead is promoted to a Deal:
-*   `logs` and `emails` are transferred entirely to preserve history.
-*   `signal_ids` are dropped to minimize technical bloat.
+### 3.3 State Machine & Exclusivity
+The `companies.status` field is the **Single Source of Truth** for pipeline exclusivity. 
+*   **Promotion**: Promoting a lead to a deal updates `companies.status = 'deal'`, creates a new deal record, and updates all associated `logs` and `emails` to point to the new Deal ID. The Lead record is kemudian purged.
+*   **Archival**: Setting `companies.flag = 'archived'` automatically clears active status and drops the entity from priority views.
 
 ---
 
 ## 4. API Specification
-All endpoints are prefixed with `/api`. Documentation is available at `/docs`.
 
 ### 4.1 Signals
-*   **`POST /api/signals/generate`**: Triggers signal ingestion and AI enrichment.
-*   **`GET /api/signals`**: Retrieves signals in decreasing order of relevance.
+*   **`GET /api/signals`**: Returns enriched signals with hydrated company names.
 
 ### 4.2 Leads
-*   **`POST /api/leads/generate`**: Aggregates enriched signals into unique leads.
-*   **`GET /api/leads`**: Returns leads with calculated relevance.
-*   **`POST /api/leads/manual`**: Manually inject a company into the lead pipeline.
-*   **`PATCH /api/leads/{id}/logs`**: Adds a manual intelligence log.
-*   **`DELETE /api/leads/{id}/logs/{log_id}`**: Removes a specific log entry.
-*   **`DELETE /api/leads/{id}`**: Removes a lead and archives the company.
+*   **`GET /api/leads`**: Returns leads hydrated with company info and `logs` timeline.
+*   **`POST /api/leads/manual`**: Resolve/Register company and inject into pipeline.
 
 ### 4.3 Deals
-*   **`GET /api/deals`**: Primary pipeline. Uses **70/30 weighted average** of LLM log scores and signal history.
-*   **`GET /api/deals/relevance-logs`**: Sorting focused specifically on log sentiment.
-*   **`POST /api/deals/promote`**: Standard promotion endpoint for Lead -> Deal conversion.
-*   **`POST /api/deals/manual`**: Directly inject a deal (or promote existing lead).
-*   **`DELETE /api/deals/{id}`**: Removes a deal and archives the company.
+*   **`GET /api/deals`**: Returns deals hydrated with company info and `logs` timeline.
+*   **`POST /api/deals/promote`**: Standard Lead -> Deal conversion (handles relational log migration).
 
 ### 4.4 Companies
-*   **`GET /api/companies`**: Returns the master list of all identified organizations.
-*   **`PATCH /api/companies/{id}/emails`**: Updates the contact directory for a company.
-*   **`PATCH /api/companies/{id}/archive`**: Toggles archives and purges active pipeline records.
+*   **`GET /api/companies`**: Master registry retrieval.
+*   **`PATCH /api/companies/{id}/emails`**: Updates the company's contact directory.
 
 ### 4.5 Emails
-*   **`GET /api/emails`**: Fetches communications list with "is_loggable" detection.
-*   **`POST /api/emails/`**: Saves an email (used by Browser Extension).
-*   **`PATCH /api/emails/{id}/company`**: Manually tags an email to a company.
-*   **`GET /api/emails/{id}/suggest-log`**: AI-driven log message suggestion.
-*   **`POST /api/emails/{id}/log`**: Confirms a log and pushes it to the active pipeline.
-*   **`POST /api/emails/generate`**: AI-driven outreach email generation.
+*   **`GET /api/emails`**: Communication feed with hydrated company context.
+*   **`POST /api/emails/{id}/log`**: Pushes an AI summary to the centralized `logs` collection.
+*   **`DELETE /api/emails/{id}`**: Permanently removes an email record from the system. Requires user confirmation on frontend.
 
 ---
 

@@ -13,7 +13,7 @@ Blostem is an end-to-end sales intelligence engine that automates the transition
 - **📊 Growth Command Dashboard**: A high-density, glassmorphic overview of market pulse and priority alerts.
 - **🧩 Gmail Extension**: Seamlessly ingest emails and generate AI outreach drafts directly within the Gmail interface.
 - **⚖️ Smart Prioritization**: Advanced scoring algorithms (70/30 weighted logs-to-signals) to identify high-urgency deals.
-- **📧 Unified Communications**: Browser extension support for tracking email interactions and generating AI outreach drafts.
+- **📧 Unified Communications**: Browser extension support for tracking email interactions, generating AI outreach drafts, and managing communication history with secure deletion workflows.
 - **🛡️ Clean Architecture**: A centralized company-first registry ensuring data consistency across Leads and Deals.
 
 ---

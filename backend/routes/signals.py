@@ -1,64 +1,71 @@
-from fastapi import APIRouter, BackgroundTasks
+from backend.core.db import signals_collection, companies
 from bson import ObjectId
-from backend.services.signals.fetchers import fetch_newsapi, fetch_rss
-from backend.services.signals.processor import process_raw_signals
-from backend.tasks.signals import run_enrichment_pipeline_sync, process_enrichment_queue
-from backend.core.db import signals_collection
-from backend.core.logger import get_logger
+from fastapi import APIRouter, HTTPException, BackgroundTasks
+from backend.services.signals.fetchers import news_fetcher
+from backend.tasks.signals import signal_pipeline
 
 router = APIRouter()
-logger = get_logger("routes.signals")
 
 @router.post("/generate")
 async def generate_signals(background_tasks: BackgroundTasks):
     """
-    Synchronous Signal Generation + Background AI Enrichment.
-    1. Fetch new news/rss.
-    2. Identify stalled signals for recovery.
-    3. Trigger background enrichment.
+    Real-time signal ingestion from NewsAPI.
     """
-    logger.info("Signal generation + Auto-Recovery triggered.")
+    raw_signals = await news_fetcher.fetch_signals()
     
-    # 1. Fetch & Store New
-    news_signals = await fetch_newsapi()
-    rss_signals = await fetch_rss(["https://techcrunch.com/feed/"])
-    all_raw = news_signals + rss_signals
-    stats = process_raw_signals(all_raw)
-    new_ids = stats.get("new_ids", [])
+    saved_count = 0
+    for s in raw_signals:
+        try:
+            # Atomic insertion with hash uniqueness check
+            res = signals_collection.insert_one(s)
+            saved_count += 1
+            # Queue for enrichment
+            background_tasks.add_task(signal_pipeline.process_signal, res.inserted_id)
+        except:
+            pass # Duplicate signal
+            
+    return {"ingested_count": saved_count, "message": f"Successfully ingested {saved_count} new market signals."}
+
+@router.post("/{signal_id}/retry")
+async def retry_signal(signal_id: str, background_tasks: BackgroundTasks):
+    """
+    Manually retry enrichment for a failed or raw signal.
+    """
+    obj_id = ObjectId(signal_id)
+    signal = signals_collection.find_one({"_id": obj_id})
+    if not signal:
+        raise HTTPException(status_code=404, detail="Signal not found")
+        
+    signals_collection.update_one({"_id": obj_id}, {"$set": {"status": "processing"}})
+    background_tasks.add_task(signal_pipeline.process_signal, obj_id)
     
-    # 2. Identify Stalled Signals (Self-Healing)
-    stalled_docs = list(signals_collection.find({
-        "status": {"$in": ["raw", "embedded", "enrichment_failed"]}
-    }))
-    stalled_ids = [str(d["_id"]) for d in stalled_docs]
-    
-    # Combine lists for enrichment attempt
-    to_enrich = list(set(new_ids + stalled_ids))
-    
-    # 3. Offload AI Enrichment to Background
-    if to_enrich:
-        background_tasks.add_task(process_enrichment_queue, to_enrich)
-    
-    return {
-        "status": "success",
-        "ingested": len(all_raw),
-        "new_count": stats["new_count"],
-        "duplicates_skipped": stats["duplicates"],
-        "background_queue_count": len(to_enrich)
-    }
+    return {"status": "queued"}
 
 @router.get("/")
 async def get_signals():
     """
-    Use Case 2: Display signals in decreasing order of relevance.
+    Use Case 2: Display signals with hydrated company names.
+    Includes raw and failed signals.
     """
-    signals = list(
-        signals_collection
-        .find({"status": "enriched"})
-        .sort("relevance_score", -1)
-    )
+    pipeline = [
+        # Show all signals now
+        {"$sort": {"relevance_score": -1}},
+        {
+            "$lookup": {
+                "from": "companies",
+                "localField": "company_ids",
+                "foreignField": "_id",
+                "as": "companies_data"
+            }
+        }
+    ]
+    
+    signals = list(signals_collection.aggregate(pipeline))
     
     for s in signals:
         s["_id"] = str(s["_id"])
+        s["company_ids"] = [str(cid) for cid in s.get("company_ids", [])]
+        s["company_names"] = [c.get("name") for c in s.get("companies_data", [])]
+        s.pop("companies_data", None)
     
     return signals

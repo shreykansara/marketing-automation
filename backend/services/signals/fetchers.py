@@ -1,64 +1,82 @@
 import os
 import httpx
-import feedparser
-from datetime import datetime, timezone
-from dateutil import parser as date_parser
-from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
+import hashlib
+import datetime
+from typing import List, Dict, Any
 from backend.core.logger import get_logger
 
-logger = get_logger("signals.fetchers")
+logger = get_logger("fetchers")
 
-RETRY_EXCEPTIONS = (httpx.RequestError, httpx.TimeoutException)
-
-@retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_attempt(3), retry=retry_if_exception_type(RETRY_EXCEPTIONS))
-async def _fetch_url(url: str, params: dict = None) -> httpx.Response:
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        return await client.get(url, params=params)
-
-async def fetch_newsapi(q: str = "funding OR raises") -> list[dict]:
-    api_key = os.getenv("NEWS_API_KEY")
-    if not api_key:
-        logger.error("NEWS_API_KEY is missing")
-        return []
-
-    url = "https://newsapi.org/v2/everything"
-    params = {"q": q, "language": "en", "sortBy": "publishedAt", "pageSize": 20, "apiKey": api_key}
-    
-    try:
-        resp = await _fetch_url(url, params)
-        resp.raise_for_status()
-        articles = resp.json().get("articles", [])
+class NewsFetcher:
+    def __init__(self):
+        self._api_key = None
+        self.base_url = "https://newsapi.org/v2/everything"
         
-        signals = []
-        for a in articles:
-            signals.append({
-                "title": a.get("title"),
-                "content": a.get("description"),
-                "url": a.get("url"),
-                "source": a.get("source", {}).get("name", "NewsAPI"),
-                "published_at": a.get("publishedAt")
-            })
-        return signals
-    except Exception as e:
-        logger.error(f"NewsAPI fetch error: {e}")
-        return []
+    @property
+    def api_key(self):
+        if not self._api_key:
+            key = os.getenv("NEWS_API_KEY")
+            if key:
+                # Strip dashes just in case the user provided a UUID format
+                self._api_key = key.replace("-", "").strip()
+        return self._api_key
+        
+    def _generate_hash(self, text: str) -> str:
+        return hashlib.sha256(text.encode()).hexdigest()
 
-async def fetch_rss(feeds: list[str]) -> list[dict]:
-    all_signals = []
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        for url in feeds:
-            try:
-                resp = await client.get(url)
-                resp.raise_for_status()
-                feed = feedparser.parse(resp.content)
-                for entry in feed.entries:
-                    all_signals.append({
-                        "title": entry.get("title"),
-                        "content": entry.get("description"),
-                        "url": entry.get("link"),
-                        "source": feed.feed.get("title", "RSS"),
-                        "published_at": entry.get("published") or entry.get("updated")
-                    })
-            except Exception as e:
-                logger.error(f"RSS fetch error for {url}: {e}")
-    return all_signals
+    async def fetch_signals(self, queries: List[str] = ["Fintech India", "Banking Technology India"]) -> List[Dict[str, Any]]:
+        if not self.api_key:
+            logger.error("NEWS_API_KEY not found in environment.")
+            return []
+
+        all_signals = []
+        async with httpx.AsyncClient() as client:
+            for query in queries:
+                try:
+                    logger.info(f"Fetching signals for query: {query}")
+                    response = await client.get(
+                        self.base_url,
+                        params={
+                            "q": query,
+                            "apiKey": self.api_key,
+                            "pageSize": 5,
+                            "sortBy": "publishedAt",
+                            "language": "en"
+                        }
+                    )
+                    
+                    logger.info(f"Raw API Response for {query}: {response.text}")
+                    
+                    if response.status_code == 200:
+                        data = response.json()
+                        articles = data.get("articles", [])
+                        
+                        for art in articles:
+                            # Basic signal structure
+                            signal = {
+                                "title": art.get("title"),
+                                "content": art.get("description") or art.get("content"),
+                                "source": art.get("source", {}).get("name", "NewsAPI"),
+                                "url": art.get("url"),
+                                "published_at": art.get("publishedAt"),
+                                "created_at": datetime.datetime.now(),
+                                "hash": self._generate_hash(art.get("url", "") + (art.get("title") or "")),
+                                "status": "raw",
+                                "company_ids": [],
+                                "relevance_score": None,
+                                "category": "general"
+                            }
+                            all_signals.append(signal)
+                    else:
+                        error_data = {}
+                        try:
+                            error_data = response.json()
+                        except:
+                            pass
+                        logger.error(f"NewsAPI error {response.status_code} for {query}: {error_data.get('message', response.text)}")
+                except Exception as e:
+                    logger.error(f"Failed to fetch signals for {query}: {str(e)}")
+                    
+        return all_signals
+
+news_fetcher = NewsFetcher()
