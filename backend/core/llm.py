@@ -172,7 +172,7 @@ class LLMService:
             return {"subject": "AI Draft", "body": "LLM offline. Please check GROQ_API_KEY."}
 
         recent_logs = logs[-3:]
-        logs_text = "\n".join([f"- {l.get('message')}" for l in recent_logs])
+        logs_text = "\n".join([f"- {l}" for l in recent_logs])
 
         system_prompt = (
             "You are a top-tier fintech B2B sales copywriter for Blostem.\n\n"
@@ -207,6 +207,43 @@ class LLMService:
         except Exception as e:
             print(f"[ERROR] LLM email generation failed: {e}")
             return {"subject": "Follow up: Blostem", "body": f"Error generating email: {str(e)}"}
+
+    def generate_cold_outreach(self, recipient_email: str, company_name: str = "your company") -> Dict[str, str]:
+        if not self.client:
+            return {"subject": "AI Draft", "body": "LLM offline."}
+
+        system_prompt = (
+            "You are a elite B2B sales development representative for Blostem.\n\n"
+            "Blostem is an Indian fintech infrastructure platform providing:\n"
+            "1. FD (Fixed Deposit) distribution infra for apps and platforms.\n"
+            "2. Virtual Account and Escrow APIs for automated collections.\n"
+            "3. Digital Onboarding and KYC stacks.\n\n"
+            "OBJECTIVE: Reaching out to a new prospect cold to sell our specialized fintech services. Make it sound like a professional general outreach.\n\n"
+            "WRITING RULES:\n"
+            "1. Personalize based on the company name provided.\n"
+            "2. Focus on engineering efficiency and fast time-to-market.\n"
+            "3. Professional, concise, and value-driven.\n"
+            "4. Mention that we work with top Banks in India.\n"
+            "5. Subject line must be high-CTR but professional.\n\n"
+            "Return JSON with 'subject' and 'body'."
+        )
+
+        user_prompt = f"Target Recipient: {recipient_email}\nTarget Company: {company_name}\n\nDraft a compelling general outreach email to pitch Blostem's infrastructure."
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.75
+            )
+            return json.loads(response.choices[0].message.content)
+        except Exception as e:
+            print(f"[ERROR] Cold outreach generation failed: {e}")
+            return {"subject": f"Synergy with {company_name}", "body": f"I'm reaching out from Blostem to explore how we can support {company_name} with our banking infrastructure."}
 
     def generate_email_log_suggestion(self, subject: str, body: str) -> str:
         if not self.client:

@@ -184,14 +184,39 @@ async def confirm_email_log(email_id: str, message: str = Body(..., embed=True))
 async def generate_ai_email(recipient_email: str = Body(..., embed=True)):
     """
     Generate an AI outreach email for a recipient contextually.
+    If company not in database, generate a cold outreach draft.
     """
     company = companies.find_one({"emails": {"$in": [recipient_email]}})
+    
+    # helper to get a nice name from email if company unknown
+    def get_fallback_name(email):
+        try:
+            domain = email.split('@')[-1].split('.')[0]
+            return domain.capitalize() if domain else "your company"
+        except:
+            return "your company"
+
     if not company:
-        raise HTTPException(status_code=404, detail="Recipient company not registered.")
+        # Scenario 2: Fallback to cold outreach generation
+        fallback_name = get_fallback_name(recipient_email)
+        generation = llm_service.generate_cold_outreach(recipient_email, fallback_name)
+        return {
+            "status": "success",
+            "company": fallback_name,
+            "current_state_detected": "cold_outreach",
+            "generated": generation
+        }
         
     status = company.get("status")
     if not status:
-         raise HTTPException(status_code=404, detail="Company found but no active Lead or Deal pipeline found.")
+         # Internal company but no pipeline, still do cold outreach
+         generation = llm_service.generate_cold_outreach(recipient_email, company["name"])
+         return {
+            "status": "success",
+            "company": company["name"],
+            "current_state_detected": "internal_no_pipeline",
+            "generated": generation
+         }
 
     if status == "lead":
         target = leads_collection.find_one({"company_id": company["_id"]})
@@ -199,7 +224,14 @@ async def generate_ai_email(recipient_email: str = Body(..., embed=True)):
         target = deals_collection.find_one({"company_id": company["_id"]})
 
     if not target:
-        raise HTTPException(status_code=404, detail=f"Active {status} data missing.")
+        # Fallback if pipeline data missing
+        generation = llm_service.generate_cold_outreach(recipient_email)
+        return {
+            "status": "success",
+            "company": company["name"],
+            "current_state_detected": f"missing_{status}_data",
+            "generated": generation
+        }
 
     logs = list(logs_collection.find({"entity_id": target["_id"]}).sort("timestamp", DESCENDING).limit(10))
     log_texts = [l["message"] for l in logs]

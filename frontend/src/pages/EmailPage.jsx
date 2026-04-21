@@ -13,6 +13,7 @@ import {
   Tag,
   Trash2
 } from 'lucide-react';
+import ConfirmModal from '../components/ConfirmModal';
 import { API_BASE_URL } from '../config';
 
 const EmailPage = () => {
@@ -21,6 +22,7 @@ const EmailPage = () => {
   const [selectedEmail, setSelectedEmail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     fetchEmails();
@@ -143,12 +145,12 @@ const EmailPage = () => {
 
   const handleDeleteEmail = async () => {
     if (!selectedEmail) return;
+    setShowDeleteConfirm(true);
+  };
 
-    const confirmDelete = window.confirm(
-      "Are you sure you want to delete this email? This action is permanent and cannot be undone."
-    );
-
-    if (!confirmDelete) return;
+  const confirmDeleteEmail = async () => {
+    if (!selectedEmail) return;
+    setShowDeleteConfirm(false);
 
     try {
       setLoading(true);
@@ -603,6 +605,16 @@ const EmailPage = () => {
           box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
         }
       `}</style>
+
+      <ConfirmModal 
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={confirmDeleteEmail}
+        title="Delete Conversation"
+        message="Are you sure you want to delete this email? This interaction will be permanently removed from the system."
+        confirmText="Delete Email"
+        type="danger"
+      />
     </div>
   );
 };
