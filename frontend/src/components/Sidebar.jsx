@@ -6,10 +6,15 @@ import {
   Users, 
   Briefcase, 
   Mail,
-  Building2
+  Building2,
+  LogOut,
+  User as UserIcon
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const Sidebar = () => {
+  const { user, logout } = useAuth();
+
   return (
     <aside className="sidebar glass">
       <div className="sidebar-header">
@@ -28,6 +33,21 @@ const Sidebar = () => {
         <SidebarLink to="/companies" icon={<Building2 size={18} />} label="Company Registry" />
       </nav>
 
+      <div className="sidebar-footer">
+        <div className="user-profile">
+          <div className="user-avatar">
+            <UserIcon size={16} />
+          </div>
+          <div className="user-info">
+            <span className="user-name">{user?.full_name || 'User'}</span>
+            <span className="user-email">{user?.email}</span>
+          </div>
+        </div>
+        <button className="logout-btn glass-hover" onClick={logout} title="Log Out">
+          <LogOut size={18} />
+        </button>
+      </div>
+
       <style jsx>{`
         .sidebar {
           width: var(--sidebar-width);
@@ -45,6 +65,76 @@ const Sidebar = () => {
 
         .sidebar-header {
           padding: 1.5rem 1.25rem;
+        }
+
+        .sidebar-footer {
+          padding: 1.25rem;
+          border-top: 1px solid var(--glass-border);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.5rem;
+        }
+
+        .user-profile {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          flex: 1;
+          overflow: hidden;
+        }
+
+        .user-avatar {
+          width: 32px;
+          height: 32px;
+          border-radius: 8px;
+          background: rgba(255, 255, 255, 0.05);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--accent-primary);
+          flex-shrink: 0;
+        }
+
+        .user-info {
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+        }
+
+        .user-name {
+          font-size: 0.85rem;
+          font-weight: 700;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .user-email {
+          font-size: 0.7rem;
+          color: var(--text-muted);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .logout-btn {
+          width: 32px;
+          height: 32px;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: none;
+          background: none;
+          color: var(--text-muted);
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .logout-btn:hover {
+          color: var(--accent-danger);
+          background: rgba(239, 68, 68, 0.1);
         }
 
         .logo-container {
@@ -78,7 +168,7 @@ const Sidebar = () => {
         /* Mobile Adjustments */
         @media (max-width: 1024px) {
           .sidebar { width: var(--sidebar-collapsed); }
-          .logo-text { display: none; }
+          .logo-text, .user-info, .sidebar-footer { display: none; }
           .logo-container { justify-content: center; }
         }
 

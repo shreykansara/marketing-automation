@@ -12,3 +12,7 @@ scipy
 sentence-transformers
 gunicorn
 uvicorn[standard]
+passlib[bcrypt]
+python-jose[cryptography]
+python-multipart
+email-validator

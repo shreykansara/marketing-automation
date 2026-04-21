@@ -15,8 +15,11 @@ leads_collection = db.leads
 deals_collection = db.deals
 emails_collection = db.emails
 logs_collection = db.logs
+users_collection = db.users
+invite_codes_collection = db.invite_codes
 
 def init_db():
     # Ensure unique indexes for de-duplication
     signals_collection.create_index("hash", unique=True)
     companies.create_index("name", unique=True)
+    users_collection.create_index("email", unique=True)

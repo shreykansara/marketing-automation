@@ -7,43 +7,72 @@ import LeadsPage from './pages/LeadsPage';
 import DealsPage from './pages/DealsPage';
 import EmailPage from './pages/EmailPage';
 import CompaniesPage from './pages/CompaniesPage';
+import LoginPage from './pages/LoginPage';
+import { AuthProvider, useAuth } from './context/AuthContext';
 
-function App() {
-  const [systemStatus, setSystemStatus] = useState('idle'); // 'idle', 'processing', 'error'
+const ProtectedRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <div className="auth-page">
+        <div className="loader"></div>
+      </div>
+    );
+  }
+  
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return children;
+};
+
+const AppContent = () => {
+  const [systemStatus, setSystemStatus] = useState('idle');
+  const { user } = useAuth();
 
   return (
-    <Router>
-      <div className="app-shell">
-        <Sidebar systemStatus={systemStatus} />
-        
-        <main className="main-content">
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route 
-              path="/explore" 
-              element={<ExplorePage setSystemStatus={setSystemStatus} />} 
-            />
-            <Route 
-              path="/leads" 
-              element={<LeadsPage setSystemStatus={setSystemStatus} />} 
-            />
-            <Route 
-              path="/deals" 
-              element={<DealsPage setSystemStatus={setSystemStatus} />} 
-            />
-            <Route 
-              path="/emails" 
-              element={<EmailPage setSystemStatus={setSystemStatus} />} 
-            />
-            <Route 
-              path="/companies" 
-              element={<CompaniesPage setSystemStatus={setSystemStatus} />} 
-            />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </main>
-      </div>
-    </Router>
+    <div className="app-shell">
+      {user && <Sidebar systemStatus={systemStatus} />}
+      
+      <main className={user ? "main-content" : "auth-content"}>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          
+          <Route path="/" element={
+            <ProtectedRoute><Dashboard /></ProtectedRoute>
+          } />
+          <Route path="/explore" element={
+            <ProtectedRoute><ExplorePage setSystemStatus={setSystemStatus} /></ProtectedRoute>
+          } />
+          <Route path="/leads" element={
+            <ProtectedRoute><LeadsPage setSystemStatus={setSystemStatus} /></ProtectedRoute>
+          } />
+          <Route path="/deals" element={
+            <ProtectedRoute><DealsPage setSystemStatus={setSystemStatus} /></ProtectedRoute>
+          } />
+          <Route path="/emails" element={
+            <ProtectedRoute><EmailPage setSystemStatus={setSystemStatus} /></ProtectedRoute>
+          } />
+          <Route path="/companies" element={
+            <ProtectedRoute><CompaniesPage setSystemStatus={setSystemStatus} /></ProtectedRoute>
+          } />
+          
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </main>
+    </div>
+  );
+};
+
+function App() {
+  return (
+    <AuthProvider>
+      <Router>
+        <AppContent />
+      </Router>
+    </AuthProvider>
   );
 }
 
