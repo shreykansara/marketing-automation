@@ -52,6 +52,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.middleware("http")
+async def log_origin(request: Request, call_next):
+    origin = request.headers.get("origin") or request.headers.get("Origin")
+    if origin:
+        print(f"[DEBUG] Incoming Request Origin: {origin}")
+    return await call_next(request)
+
 # Include Routes
 app.include_router(signals.router, prefix="/api/signals", tags=["Signals"])
 app.include_router(leads.router, prefix="/api/leads", tags=["Leads"])
