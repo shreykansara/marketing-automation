@@ -1,11 +1,12 @@
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Body, Depends
 from backend.core.db import companies, leads_collection, deals_collection
+from backend.core.auth import get_current_user
 from bson import ObjectId
 
 router = APIRouter()
 
 @router.get("/")
-async def get_companies():
+async def get_companies(current_user: dict = Depends(get_current_user)):
     """
     Get all companies with their registry status.
     """
@@ -15,7 +16,7 @@ async def get_companies():
     return res
 
 @router.patch("/{company_id}/emails")
-async def update_company_emails(company_id: str, payload: dict = Body(...)):
+async def update_company_emails(company_id: str, payload: dict = Body(...), current_user: dict = Depends(get_current_user)):
     email_ids = payload.get("email_ids", [])
     companies.update_one(
         {"_id": ObjectId(company_id)},
@@ -24,7 +25,7 @@ async def update_company_emails(company_id: str, payload: dict = Body(...)):
     return {"status": "success"}
 
 @router.patch("/{company_id}/archive")
-async def toggle_archive(company_id: str, payload: dict = Body(...)):
+async def toggle_archive(company_id: str, payload: dict = Body(...), current_user: dict = Depends(get_current_user)):
     is_archived = payload.get("is_archived", True)
     flag = "archived" if is_archived else "active"
     

@@ -9,6 +9,7 @@ import {
   Archive,
   RefreshCw
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import ConfirmModal from '../components/ConfirmModal';
 import { API_BASE_URL } from '../config';
 
@@ -20,17 +21,26 @@ const CompaniesPage = ({ setSystemStatus }) => {
   const [newEmail, setNewEmail] = useState("");
   const [archivingCompany, setArchivingCompany] = useState(null);
   const [viewFilter, setViewFilter] = useState('active');
-
+  const { token, logout } = useAuth();
+  
   useEffect(() => {
-    fetchCompanies();
-  }, []);
+    if (token) fetchCompanies();
+  }, [token]);
 
   const fetchCompanies = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/companies`);
+      const res = await fetch(`${API_BASE_URL}/api/companies`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (res.status === 401) {
+        logout();
+        return;
+      }
+      
       const data = await res.json();
-      setCompanies(data);
+      setCompanies(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Failed to fetch companies", err);
     } finally {
@@ -43,7 +53,10 @@ const CompaniesPage = ({ setSystemStatus }) => {
       setSystemStatus('processing');
       const res = await fetch(`${API_BASE_URL}/api/companies/${companyId}/emails`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ email_ids: emails })
       });
       if (res.ok) {
@@ -68,7 +81,10 @@ const CompaniesPage = ({ setSystemStatus }) => {
       setSystemStatus('processing');
       const res = await fetch(`${API_BASE_URL}/api/companies/${company._id}/archive`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ is_archived: company.flag !== 'archived' })
       });
       if (res.ok) {

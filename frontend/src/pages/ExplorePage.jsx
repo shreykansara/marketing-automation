@@ -9,7 +9,7 @@ import {
   CheckCircle2,
   X
 } from 'lucide-react';
-
+import { useAuth } from '../context/AuthContext';
 import { API_BASE_URL } from '../config';
 
 const ExplorePage = ({ setSystemStatus }) => {
@@ -22,10 +22,11 @@ const ExplorePage = ({ setSystemStatus }) => {
   // Filtering states
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const { token, logout } = useAuth();
 
   useEffect(() => {
-    fetchSignals();
-  }, []);
+    if (token) fetchSignals();
+  }, [token]);
 
   useEffect(() => {
     applyFilters();
@@ -34,9 +35,17 @@ const ExplorePage = ({ setSystemStatus }) => {
   const fetchSignals = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/signals`);
+      const res = await fetch(`${API_BASE_URL}/api/signals`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (res.status === 401) {
+        logout();
+        return;
+      }
+      
       const data = await res.json();
-      setSignals(data);
+      setSignals(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Fetch failed", err);
     } finally {
@@ -45,6 +54,7 @@ const ExplorePage = ({ setSystemStatus }) => {
   };
 
   const applyFilters = () => {
+    if (!Array.isArray(signals)) return;
     let result = [...signals];
     
     if (searchTerm) {
@@ -67,7 +77,8 @@ const ExplorePage = ({ setSystemStatus }) => {
     setSystemStatus('processing');
     try {
       const res = await fetch(`${API_BASE_URL}/api/signals/generate`, {
-        method: 'POST'
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       const stats = await res.json();
       setLastStats(stats);
@@ -85,7 +96,8 @@ const ExplorePage = ({ setSystemStatus }) => {
     try {
       setSystemStatus('processing');
       const res = await fetch(`${API_BASE_URL}/api/signals/${signalId}/retry`, {
-        method: 'POST'
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
         // Optimistic UI update or just refresh

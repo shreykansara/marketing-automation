@@ -9,27 +9,34 @@ import {
   TrendingUp,
   MailWarning
 } from 'lucide-react';
-
+import { useAuth } from '../context/AuthContext';
 import { API_BASE_URL } from '../config';
 
 const Dashboard = () => {
   const [stats, setStats] = useState({ signals: 0, leads: 0, deals: 0 });
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { token, logout } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchStats();
-  }, []);
+    if (token) fetchStats();
+  }, [token]);
 
   const fetchStats = async () => {
     try {
+      const headers = { 'Authorization': `Bearer ${token}` };
       const [sRes, lRes, dRes, eRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/signals`),
-        fetch(`${API_BASE_URL}/api/leads`),
-        fetch(`${API_BASE_URL}/api/deals`),
-        fetch(`${API_BASE_URL}/api/emails`)
+        fetch(`${API_BASE_URL}/api/signals`, { headers }),
+        fetch(`${API_BASE_URL}/api/leads`, { headers }),
+        fetch(`${API_BASE_URL}/api/deals`, { headers }),
+        fetch(`${API_BASE_URL}/api/emails`, { headers })
       ]);
+
+      if (sRes.status === 401) {
+        logout();
+        return;
+      }
 
       const signals = await sRes.json();
       const leads = await lRes.json();
@@ -37,31 +44,40 @@ const Dashboard = () => {
       const emails = await eRes.json();
 
       setStats({
-        signals: signals.length,
-        leads: leads.length,
-        deals: deals.length
+        signals: Array.isArray(signals) ? signals.length : 0,
+        leads: Array.isArray(leads) ? leads.length : 0,
+        deals: Array.isArray(deals) ? deals.length : 0
       });
 
       const newAlerts = [];
-      const highSignals = signals.sort((a, b) => b.relevance_score - a.relevance_score).filter(s => s.relevance_score >= 80).slice(0, 2);
-      highSignals.forEach(s => newAlerts.push({
-        id: `sig-${s._id}`,
-        type: 'signal',
-        title: 'High Intent Signal',
-        subject: s.title,
-        severity: 'high',
-        target: '/explore'
-      }));
+      if (Array.isArray(signals)) {
+        const highSignals = signals
+          .filter(s => typeof s.relevance_score === 'number')
+          .sort((a, b) => b.relevance_score - a.relevance_score)
+          .filter(s => s.relevance_score >= 80)
+          .slice(0, 2);
+          
+        highSignals.forEach(s => newAlerts.push({
+          id: `sig-${s._id}`,
+          type: 'signal',
+          title: 'High Intent Signal',
+          subject: s.title,
+          severity: 'high',
+          target: '/explore'
+        }));
+      }
 
-      const unlogged = emails.filter(e => e.is_logged === false).slice(0, 2);
-      unlogged.forEach(e => newAlerts.push({
-        id: `em-${e._id}`,
-        type: 'email',
-        title: 'Unlogged Response',
-        subject: e.subject,
-        severity: 'medium',
-        target: '/emails'
-      }));
+      if (Array.isArray(emails)) {
+        const unlogged = emails.filter(e => e.is_logged === false).slice(0, 2);
+        unlogged.forEach(e => newAlerts.push({
+          id: `em-${e._id}`,
+          type: 'email',
+          title: 'Unlogged Response',
+          subject: e.subject,
+          severity: 'medium',
+          target: '/emails'
+        }));
+      }
 
       setAlerts(newAlerts);
       setLoading(false);

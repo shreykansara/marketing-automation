@@ -15,6 +15,7 @@ import {
   X,
   History
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import ConfirmModal from '../components/ConfirmModal';
 import { API_BASE_URL } from '../config';
 
@@ -26,17 +27,26 @@ const LeadsPage = ({ setSystemStatus }) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newLeadCompany, setNewLeadCompany] = useState("");
   const [deletingLead, setDeletingLead] = useState(null);
+  const { token, logout } = useAuth();
 
   useEffect(() => {
-    fetchLeads();
-  }, []);
+    if (token) fetchLeads();
+  }, [token]);
 
   const fetchLeads = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/leads`);
+      const res = await fetch(`${API_BASE_URL}/api/leads`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (res.status === 401) {
+        logout();
+        return;
+      }
+      
       const data = await res.json();
-      setLeads(data);
+      setLeads(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Leads fetch failed", err);
     } finally {
@@ -54,7 +64,10 @@ const LeadsPage = ({ setSystemStatus }) => {
       setSystemStatus('processing');
       const res = await fetch(`${API_BASE_URL}/api/leads/manual`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ company_name: newLeadCompany })
       });
       if (res.ok) {
@@ -70,7 +83,10 @@ const LeadsPage = ({ setSystemStatus }) => {
     if (!deletingLead) return;
     try {
       setSystemStatus('processing');
-      const res = await fetch(`${API_BASE_URL}/api/leads/${deletingLead._id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE_URL}/api/leads/${deletingLead._id}`, { 
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       if (res.ok) {
         await fetchLeads();
         setSystemStatus('idle');
@@ -84,7 +100,10 @@ const LeadsPage = ({ setSystemStatus }) => {
       setSystemStatus('processing');
       const res = await fetch(`${API_BASE_URL}/api/deals/promote`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ lead_id: leadId })
       });
       if (res.ok) {
@@ -298,7 +317,10 @@ export const LogManager = ({ type, parentId, logs, onUpdate }) => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/${type}s/${parentId}/logs`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
         body: JSON.stringify({ message: newLog })
       });
       if (res.ok) {
@@ -312,7 +334,8 @@ export const LogManager = ({ type, parentId, logs, onUpdate }) => {
   const handleDeleteLog = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/${type}s/${parentId}/logs/${deleteModal.logId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
       if (res.ok) {
         setDeleteModal({ isOpen: false, logId: null });

@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Body, Depends
+from backend.core.auth import get_current_user
 from backend.core.db import leads_collection, signals_collection, companies, logs_collection
 from bson import ObjectId
 from datetime import datetime, timezone
@@ -7,7 +8,7 @@ from pymongo import DESCENDING
 router = APIRouter()
 
 @router.post("/generate")
-async def generate_leads():
+async def generate_leads(current_user: dict = Depends(get_current_user)):
     """
     Aggregation pipeline: Enriched signals -> Centralized Leads.
     """
@@ -56,7 +57,7 @@ async def generate_leads():
     return {"leads_aggregated": leads_count}
 
 @router.get("/")
-async def get_leads():
+async def get_leads(current_user: dict = Depends(get_current_user)):
     """
     Use Case 4: Display leads with hydrated company info and metrics.
     """
@@ -122,7 +123,7 @@ async def get_leads():
     return leads
 
 @router.post("/manual")
-async def add_manual_lead(payload: dict = Body(...)):
+async def add_manual_lead(payload: dict = Body(...), current_user: dict = Depends(get_current_user)):
     company_name = payload.get("company_name")
     if not company_name:
         raise HTTPException(status_code=400, detail="Company name required")
@@ -162,7 +163,7 @@ async def add_manual_lead(payload: dict = Body(...)):
     return {"status": "success"}
 
 @router.delete("/{lead_id}")
-async def delete_lead(lead_id: str):
+async def delete_lead(lead_id: str, current_user: dict = Depends(get_current_user)):
     lead = leads_collection.find_one({"_id": ObjectId(lead_id)})
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
@@ -177,7 +178,7 @@ async def delete_lead(lead_id: str):
     return {"status": "success"}
 
 @router.post("/{lead_id}/logs")
-async def add_lead_log(lead_id: str, message: str = Body(..., embed=True)):
+async def add_lead_log(lead_id: str, message: str = Body(..., embed=True), current_user: dict = Depends(get_current_user)):
     log_entry = {
         "entity_id": ObjectId(lead_id),
         "timestamp": datetime.now(timezone.utc),
@@ -188,6 +189,6 @@ async def add_lead_log(lead_id: str, message: str = Body(..., embed=True)):
     return {"status": "success"}
 
 @router.delete("/{lead_id}/logs/{log_id}")
-async def delete_lead_log(lead_id: str, log_id: str):
+async def delete_lead_log(lead_id: str, log_id: str, current_user: dict = Depends(get_current_user)):
     logs_collection.delete_one({"_id": ObjectId(log_id)})
     return {"status": "success"}

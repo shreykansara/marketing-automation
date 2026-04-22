@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Body, Depends
+from backend.core.auth import get_current_user
 from backend.core.db import deals_collection, leads_collection, companies, logs_collection, emails_collection
 from bson import ObjectId
 from datetime import datetime, timezone
@@ -6,7 +7,7 @@ from datetime import datetime, timezone
 router = APIRouter()
 
 @router.get("/")
-async def get_deals():
+async def get_deals(current_user: dict = Depends(get_current_user)):
     """
     Use Case 5: Pipeline with Hydrated Data.
     """
@@ -63,7 +64,7 @@ async def get_deals():
     return deals
 
 @router.post("/promote")
-async def promote_lead(payload: dict = Body(...)):
+async def promote_lead(payload: dict = Body(...), current_user: dict = Depends(get_current_user)):
     lead_id = payload.get("lead_id")
     if not lead_id:
         raise HTTPException(status_code=400, detail="lead_id required")
@@ -111,7 +112,7 @@ async def promote_lead(payload: dict = Body(...)):
     return {"status": "success", "deal_id": str(deal_id)}
 
 @router.post("/manual")
-async def add_manual_deal(payload: dict = Body(...)):
+async def add_manual_deal(payload: dict = Body(...), current_user: dict = Depends(get_current_user)):
     company_name = payload.get("company_name")
     if not company_name:
         raise HTTPException(status_code=400, detail="Company name required")
@@ -153,7 +154,7 @@ async def add_manual_deal(payload: dict = Body(...)):
     return {"status": "success"}
 
 @router.delete("/{deal_id}")
-async def delete_deal(deal_id: str):
+async def delete_deal(deal_id: str, current_user: dict = Depends(get_current_user)):
     deal = deals_collection.find_one({"_id": ObjectId(deal_id)})
     if not deal:
         raise HTTPException(status_code=404, detail="Deal not found")

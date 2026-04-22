@@ -13,6 +13,7 @@ import {
   Tag,
   Trash2
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import ConfirmModal from '../components/ConfirmModal';
 import { API_BASE_URL } from '../config';
 
@@ -23,27 +24,46 @@ const EmailPage = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const { token, logout } = useAuth();
 
   useEffect(() => {
-    fetchEmails();
-    fetchCompanies();
-  }, []);
+    if (token) {
+      fetchEmails();
+      fetchCompanies();
+    }
+  }, [token]);
 
   const fetchCompanies = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/companies`);
+      const res = await fetch(`${API_BASE_URL}/api/companies`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (res.status === 401) {
+        logout();
+        return;
+      }
+      
       const data = await res.json();
-      setCompanies(data);
+      setCompanies(Array.isArray(data) ? data : []);
     } catch (err) { }
   };
 
   const fetchEmails = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/emails`);
+      const res = await fetch(`${API_BASE_URL}/api/emails`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (res.status === 401) {
+        logout();
+        return;
+      }
+      
       const data = await res.json();
-      setEmails(data);
-      if (data.length > 0 && !selectedEmail) {
+      setEmails(Array.isArray(data) ? data : []);
+      if (Array.isArray(data) && data.length > 0 && !selectedEmail) {
         setSelectedEmail(data[0]);
       }
     } catch (err) {
@@ -80,7 +100,9 @@ const EmailPage = () => {
   const handleSuggestLog = async () => {
     setIsGeneratingLog(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/emails/${selectedEmail._id}/suggest-log`);
+      const res = await fetch(`${API_BASE_URL}/api/emails/${selectedEmail._id}/suggest-log`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       const data = await res.json();
       setSuggestedLog(data.suggestion);
       setShowLogInput(true);
@@ -96,7 +118,10 @@ const EmailPage = () => {
       setTagging(true); // Reusing tagging state for busy indicator
       const res = await fetch(`${API_BASE_URL}/api/emails/${selectedEmail._id}/log`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ message: suggestedLog })
       });
       if (res.ok) {
@@ -123,7 +148,10 @@ const EmailPage = () => {
       const payload = { company_id: tagCompanyId, company_email: extEmail };
       const res = await fetch(`${API_BASE_URL}/api/emails/${selectedEmail._id}/company`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(payload)
       });
       if (res.ok) {
@@ -155,7 +183,8 @@ const EmailPage = () => {
     try {
       setLoading(true);
       const res = await fetch(`${API_BASE_URL}/api/emails/${selectedEmail._id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
       });
 
       if (res.ok) {
@@ -183,7 +212,10 @@ const EmailPage = () => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/leads/manual`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ company_name: selectedEmail.company_name })
       });
       if (res.ok) {

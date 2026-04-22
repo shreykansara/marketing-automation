@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException, Body
 from pydantic import BaseModel, Field
 from datetime import datetime, timezone
 from backend.core.db import emails_collection, companies, leads_collection, deals_collection, logs_collection
 from bson import ObjectId
 from backend.core.llm import llm_service
+from backend.core.auth import get_current_user
+from fastapi import APIRouter, HTTPException, Body, Depends
 from pymongo import DESCENDING
 from typing import Optional
 
@@ -19,7 +20,7 @@ class EmailCreate(BaseModel):
     company_id: Optional[str] = None
 
 @router.get("/")
-async def get_emails():
+async def get_emails(current_user: dict = Depends(get_current_user)):
     """
     Use Case 8: Get emails with hydrated company names.
     """
@@ -78,7 +79,7 @@ async def get_emails():
     return emails
 
 @router.post("/")
-async def save_email(email: EmailCreate):
+async def save_email(email: EmailCreate, current_user: dict = Depends(get_current_user)):
     """
     Save an email to the database (Browser Extension).
     """
@@ -105,7 +106,7 @@ async def save_email(email: EmailCreate):
     }
 
 @router.patch("/{email_id}/company")
-async def link_email_to_company(email_id: str, payload: dict = Body(...)):
+async def link_email_to_company(email_id: str, payload: dict = Body(...), current_user: dict = Depends(get_current_user)):
     """
     Manually tags an unlinked email to a company.
     """
@@ -134,7 +135,7 @@ async def link_email_to_company(email_id: str, payload: dict = Body(...)):
     return {"status": "success", "company_name": company.get("name")}
 
 @router.post("/{email_id}/log")
-async def confirm_email_log(email_id: str, message: str = Body(..., embed=True)):
+async def confirm_email_log(email_id: str, message: str = Body(..., embed=True), current_user: dict = Depends(get_current_user)):
     """
     Finalize the log and push it to the active pipeline (Lead or Deal).
     """
@@ -181,7 +182,7 @@ async def confirm_email_log(email_id: str, message: str = Body(..., embed=True))
     return {"status": "success"}
 
 @router.post("/generate")
-async def generate_ai_email(recipient_email: str = Body(..., embed=True)):
+async def generate_ai_email(recipient_email: str = Body(..., embed=True), current_user: dict = Depends(get_current_user)):
     """
     Generate an AI outreach email for a recipient contextually.
     If company not in database, generate a cold outreach draft.
@@ -246,7 +247,7 @@ async def generate_ai_email(recipient_email: str = Body(..., embed=True)):
     }
 
 @router.delete("/{email_id}")
-async def delete_email(email_id: str):
+async def delete_email(email_id: str, current_user: dict = Depends(get_current_user)):
     """
     Delete an email from the database.
     """

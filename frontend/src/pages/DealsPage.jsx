@@ -12,6 +12,7 @@ import {
   Plus,
   X
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import { LogManager } from './LeadsPage';
 import ConfirmModal from '../components/ConfirmModal';
 import { API_BASE_URL } from '../config';
@@ -24,17 +25,26 @@ const DealsPage = ({ setSystemStatus }) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newDealCompany, setNewDealCompany] = useState("");
   const [deletingDeal, setDeletingDeal] = useState(null);
+  const { token, logout } = useAuth();
 
   useEffect(() => {
-    fetchDeals();
-  }, []);
+    if (token) fetchDeals();
+  }, [token]);
 
   const fetchDeals = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/deals`);
+      const res = await fetch(`${API_BASE_URL}/api/deals`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (res.status === 401) {
+        logout();
+        return;
+      }
+      
       const data = await res.json();
-      setDeals(data);
+      setDeals(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Deals fetch failed", err);
     } finally {
@@ -52,7 +62,10 @@ const DealsPage = ({ setSystemStatus }) => {
       setSystemStatus('processing');
       const res = await fetch(`${API_BASE_URL}/api/deals/manual`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ company_name: newDealCompany })
       });
       if (res.ok) {
@@ -68,7 +81,10 @@ const DealsPage = ({ setSystemStatus }) => {
     if (!deletingDeal) return;
     try {
       setSystemStatus('processing');
-      const res = await fetch(`${API_BASE_URL}/api/deals/${deletingDeal._id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE_URL}/api/deals/${deletingDeal._id}`, { 
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       if (res.ok) {
         await fetchDeals();
         setSystemStatus('idle');

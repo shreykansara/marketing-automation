@@ -1,13 +1,14 @@
 from backend.core.db import signals_collection, companies
 from bson import ObjectId
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
+from backend.core.auth import get_current_user
 from backend.services.signals.fetchers import news_fetcher
 from backend.tasks.signals import signal_pipeline
 
 router = APIRouter()
 
 @router.post("/generate")
-async def generate_signals(background_tasks: BackgroundTasks):
+async def generate_signals(background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
     """
     Real-time signal ingestion from NewsAPI.
     """
@@ -27,7 +28,7 @@ async def generate_signals(background_tasks: BackgroundTasks):
     return {"ingested_count": saved_count, "message": f"Successfully ingested {saved_count} new market signals."}
 
 @router.post("/{signal_id}/retry")
-async def retry_signal(signal_id: str, background_tasks: BackgroundTasks):
+async def retry_signal(signal_id: str, background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
     """
     Manually retry enrichment for a failed or raw signal.
     """
@@ -42,7 +43,7 @@ async def retry_signal(signal_id: str, background_tasks: BackgroundTasks):
     return {"status": "queued"}
 
 @router.get("/")
-async def get_signals():
+async def get_signals(current_user: dict = Depends(get_current_user)):
     """
     Use Case 2: Display signals with hydrated company names.
     Includes raw and failed signals.

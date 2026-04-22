@@ -1,6 +1,6 @@
 import asyncio
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
@@ -40,8 +40,9 @@ app.add_middleware(
         "http://localhost:3000",
         "https://marketing-automation-xtd2.vercel.app",
         "https://marketing-automation-git-main-shreyhiralkansara-7751s-projects.vercel.app",
-        "chrome-extension://hfmkofpjdbigljnhjefgmmfbakjkmjdi" # Example extension ID
+        "https://mail.google.com",
     ],
+    allow_origin_regex=r"chrome-extension://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
