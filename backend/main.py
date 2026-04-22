@@ -1,9 +1,11 @@
 import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
+import traceback
 
 # Load .env from ROOT
 load_dotenv(os.path.join(os.path.dirname(__file__), '../.env'))
@@ -31,6 +33,15 @@ app = FastAPI(
     redoc_url="/redoc",
     lifespan=lifespan
 )
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    error_msg = "".join(traceback.format_exception(None, exc, exc.__traceback__))
+    print(f"--- GLOBAL ERROR CAUGHT ---\n{error_msg}\n---------------------------")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal Server Error", "error_type": str(type(exc).__name__), "message": str(exc)},
+    )
 
 app.add_middleware(
     CORSMiddleware,
