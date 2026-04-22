@@ -1,5 +1,3 @@
-import asyncio
-from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -32,9 +30,9 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Ultimate CORS Bypass Middleware
+# Robust Custom CORS for Prototype (Allows credentials from any origin)
 @app.middleware("http")
-async def ultimate_cors_bypass(request: Request, call_next):
+async def cors_handler(request: Request, call_next):
     origin = request.headers.get("origin")
     
     if request.method == "OPTIONS":
@@ -42,9 +40,12 @@ async def ultimate_cors_bypass(request: Request, call_next):
         if origin:
             response.headers["Access-Control-Allow-Origin"] = origin
             response.headers["Access-Control-Allow-Credentials"] = "true"
-            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
-            response.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type, Accept, Origin, X-Requested-With"
-            response.headers["Access-Control-Max-Age"] = "86400"
+            response.headers["Access-Control-Allow-Methods"] = "*"
+            response.headers["Access-Control-Allow-Headers"] = "*"
+        else:
+            response.headers["Access-Control-Allow-Origin"] = "*"
+            response.headers["Access-Control-Allow-Methods"] = "*"
+            response.headers["Access-Control-Allow-Headers"] = "*"
         return response
 
     response = await call_next(request)
@@ -52,7 +53,9 @@ async def ultimate_cors_bypass(request: Request, call_next):
     if origin:
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Credentials"] = "true"
-            
+        response.headers["Access-Control-Allow-Methods"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        
     return response
 
 
