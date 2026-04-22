@@ -187,12 +187,20 @@ async def generate_ai_email(recipient_email: str = Body(..., embed=True), curren
     Generate an AI outreach email for a recipient contextually.
     If company not in database, generate a cold outreach draft.
     """
+    print(f"[DEBUG] Generating AI email for: {recipient_email}")
     company = companies.find_one({"emails": {"$in": [recipient_email]}})
     
     # helper to get a nice name from email if company unknown
     def get_fallback_name(email):
         try:
-            domain = email.split('@')[-1].split('.')[0]
+            parts = email.split('@')[-1].split('.')
+            domain = parts[0].lower()
+            
+            # Generic domains should not be used as company names
+            generic_domains = ["gmail", "yahoo", "outlook", "hotmail", "icloud", "me", "live"]
+            if domain in generic_domains:
+                return "your company"
+                
             return domain.capitalize() if domain else "your company"
         except:
             return "your company"

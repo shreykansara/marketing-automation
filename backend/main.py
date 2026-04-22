@@ -1,5 +1,6 @@
-from fastapi import FastAPI
+import asyncio
 from contextlib import asynccontextmanager
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
@@ -36,16 +37,16 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
-        "https://marketing-automation-psi.vercel.app",
-        "https://marketing-automation-xtd2.onrender.com",
+        "http://localhost:3000",
+        "https://marketing-automation-xtd2.vercel.app",
+        "https://marketing-automation-git-main-shreyhiralkansara-7751s-projects.vercel.app",
         "https://mail.google.com",
     ],
-    allow_origin_regex=r"https://.*\.vercel\.app|chrome-extension://.*|https://mail\.google\.com",
+    allow_origin_regex=r"chrome-extension://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 # Include Routes
 app.include_router(signals.router, prefix="/api/signals", tags=["Signals"])
@@ -54,15 +55,6 @@ app.include_router(deals.router, prefix="/api/deals", tags=["Deals"])
 app.include_router(emails.router, prefix="/api/emails", tags=["Emails"])
 app.include_router(companies.router, prefix="/api/companies", tags=["Companies"])
 app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
-
-@app.get("/api/health")
-async def health_check():
-    try:
-        from backend.core.db import users_collection
-        count = users_collection.count_documents({})
-        return {"status": "ok", "database": "connected", "user_count": count}
-    except Exception as e:
-        return {"status": "error", "database": str(e)}
 
 @app.get("/")
 async def root():
