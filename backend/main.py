@@ -55,6 +55,15 @@ app.include_router(emails.router, prefix="/api/emails", tags=["Emails"])
 app.include_router(companies.router, prefix="/api/companies", tags=["Companies"])
 app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
 
+@app.get("/api/health")
+async def health_check():
+    try:
+        from backend.core.db import users_collection
+        count = users_collection.count_documents({})
+        return {"status": "ok", "database": "connected", "user_count": count}
+    except Exception as e:
+        return {"status": "error", "database": str(e)}
+
 @app.get("/")
 async def root():
     return {"message": "Blostem Intelligence Platform API (No-Celery Edition) is online.", "version": "2.1"}

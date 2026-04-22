@@ -19,7 +19,11 @@ users_collection = db.users
 invite_codes_collection = db.invite_codes
 
 def init_db():
-    # Ensure unique indexes for de-duplication
-    signals_collection.create_index("hash", unique=True)
-    companies.create_index("name", unique=True)
-    users_collection.create_index("email", unique=True)
+    try:
+        # Ensure unique indexes for de-duplication
+        signals_collection.create_index("hash", unique=True)
+        companies.create_index("name", unique=True)
+        users_collection.create_index("email", unique=True)
+        print("Database initialized successfully.")
+    except Exception as e:
+        print(f"Database initialization failed: {e}")
