@@ -1,6 +1,6 @@
 import asyncio
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
@@ -32,51 +32,29 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Custom CORS middleware to ensure headers are always present
+# Ultimate CORS Bypass Middleware
 @app.middleware("http")
-async def custom_cors_middleware(request: Request, call_next):
+async def ultimate_cors_bypass(request: Request, call_next):
     origin = request.headers.get("origin")
     
-    # Handle preflight (OPTIONS) requests
     if request.method == "OPTIONS":
-        response = await call_next(request)
+        response = Response()
         if origin:
             response.headers["Access-Control-Allow-Origin"] = origin
             response.headers["Access-Control-Allow-Credentials"] = "true"
-            response.headers["Access-Control-Allow-Methods"] = "*"
-            response.headers["Access-Control-Allow-Headers"] = "*"
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+            response.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type, Accept, Origin, X-Requested-With"
+            response.headers["Access-Control-Max-Age"] = "86400"
         return response
 
     response = await call_next(request)
     
     if origin:
-        # We allow localhost, vercel, and gmail/extensions
-        allowed_patterns = [
-            "localhost", "127.0.0.1", "vercel.app", 
-            "chrome-extension://", "mail.google.com"
-        ]
-        if any(p in origin for p in allowed_patterns):
-            response.headers["Access-Control-Allow-Origin"] = origin
-            response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
             
     return response
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:3000",
-        "https://marketing-automation-xtd2.vercel.app",
-        "https://marketing-automation-git-main-shreyhiralkansara-7751s-projects.vercel.app",
-        "https://mail.google.com",
-        "http://mail.google.com",
-    ],
-    allow_origin_regex=r"(chrome-extension://.*|https://.*\.vercel\.app)",
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # Include Routes
 app.include_router(signals.router, prefix="/api/signals", tags=["Signals"])
