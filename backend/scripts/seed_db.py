@@ -22,6 +22,8 @@ def seed():
     db.deals.delete_many({})
     db.emails.delete_many({})
     db.logs.delete_many({})
+    db.invite_codes.delete_many({})
+    db.users.delete_many({})
 
     now = datetime.datetime.now()
 
@@ -56,38 +58,35 @@ def seed():
         }
 
     signals = [
-    create_signal(
-        "Jupiter expands fixed deposit offerings through new bank partnerships",
-        "Jupiter, the Bengaluru-based neobank, has expanded its fixed deposit marketplace by onboarding multiple partner banks to offer higher-yield deposit products. The move is aimed at strengthening its position in the retail savings segment and improving customer retention through diversified FD options.",
-        jupiter_id,
-        2,
-        92
-    ),
-
-    create_signal(
-        "Federal Bank explores API-driven KYC infrastructure to streamline onboarding",
-        "Federal Bank is reportedly evaluating API-based KYC and onboarding solutions to reduce friction in customer acquisition. The initiative is part of a broader digital transformation strategy focused on improving turnaround times and enabling seamless integration with fintech partners.",
-        federal_id,
-        5,
-        85
-    ),
-
-    create_signal(
-        "Razorpay begins pilot for deposit products targeting SME customers",
-        "Razorpay has initiated a pilot program to offer fixed deposit-like financial products for its SME merchant base. The company is leveraging its existing payments infrastructure to cross-sell treasury and savings products, signaling a deeper move into the banking and deposits ecosystem.",
-        razorpay_id,
-        3,
-        90
-    ),
-
-    create_signal(
-        "Acme Corp explores fintech partnerships for internal financial tooling",
-        "Acme Corp, a mid-sized logistics company, is exploring partnerships with fintech providers to improve its internal financial operations, including payments reconciliation and short-term treasury management. The initiative is still in early evaluation stages with no confirmed integrations.",
-        acme_id,
-        1,
-        60
-    ),
-]
+        create_signal(
+            "Jupiter expands fixed deposit offerings through new bank partnerships",
+            "Jupiter, the Bengaluru-based neobank, has expanded its fixed deposit marketplace by onboarding multiple partner banks to offer higher-yield deposit products. The move is aimed at strengthening its position in the retail savings segment and improving customer retention through diversified FD options.",
+            jupiter_id,
+            2,
+            92
+        ),
+        create_signal(
+            "Federal Bank explores API-driven KYC infrastructure to streamline onboarding",
+            "Federal Bank is reportedly evaluating API-based KYC and onboarding solutions to reduce friction in customer acquisition. The initiative is part of a broader digital transformation strategy focused on improving turnaround times and enabling seamless integration with fintech partners.",
+            federal_id,
+            5,
+            85
+        ),
+        create_signal(
+            "Razorpay begins pilot for deposit products targeting SME customers",
+            "Razorpay has initiated a pilot program to offer fixed deposit-like financial products for its SME merchant base. The company is leveraging its existing payments infrastructure to cross-sell treasury and savings products, signaling a deeper move into the banking and deposits ecosystem.",
+            razorpay_id,
+            3,
+            90
+        ),
+        create_signal(
+            "Acme Corp explores fintech partnerships for internal financial tooling",
+            "Acme Corp, a mid-sized logistics company, is exploring partnerships with fintech providers to improve its internal financial operations, including payments reconciliation and short-term treasury management. The initiative is still in early evaluation stages with no confirmed integrations.",
+            acme_id,
+            1,
+            60
+        ),
+    ]
     db.signals.insert_many(signals)
 
     # ---------------- LEADS ----------------
@@ -107,7 +106,6 @@ def seed():
     f1, f2, f3 = ObjectId(), ObjectId(), ObjectId()
 
     emails = [
-        # Jupiter thread
         {
             "_id": j1,
             "sender": "blostem-sales@blostem.io",
@@ -152,7 +150,6 @@ Jupiter Team
             "timestamp": now - datetime.timedelta(hours=7),
             "is_logged": True
         },
-        # ⚠️ Latest email NOT logged
         {
             "_id": j3,
             "sender": "blostem-sales@blostem.io",
@@ -176,7 +173,6 @@ Blostem Team
             "is_logged": False
         },
 
-        # Federal thread
         {
             "_id": f1,
             "sender": "outreach@federalbank.co.in",
@@ -266,7 +262,6 @@ Federal Bank
 
     # ---------------- LOGS ----------------
     logs = [
-        # Federal (deep logs)
         {"entity_id": f1, "timestamp": now - datetime.timedelta(hours=20), "type": "EMAIL", "message": "Inbound inquiry"},
         {"entity_id": federal_deal_id, "timestamp": now - datetime.timedelta(hours=19), "type": "SYSTEM", "message": "Lead evaluated"},
         {"entity_id": federal_deal_id, "timestamp": now - datetime.timedelta(hours=18), "type": "SYSTEM", "message": "Converted to deal"},
@@ -276,14 +271,36 @@ Federal Bank
         {"entity_id": federal_deal_id, "timestamp": now - datetime.timedelta(hours=12), "type": "SYSTEM", "message": "Intent score updated"},
         {"entity_id": federal_deal_id, "timestamp": now - datetime.timedelta(hours=10), "type": "SYSTEM", "message": "Moved to negotiation"},
 
-        # Jupiter deal logs
         {"entity_id": j1, "timestamp": now - datetime.timedelta(hours=10), "type": "EMAIL", "message": "Outbound email sent"},
         {"entity_id": j2, "timestamp": now - datetime.timedelta(hours=7), "type": "EMAIL", "message": "Reply received"},
         {"entity_id": jupiter_deal_id, "timestamp": now - datetime.timedelta(hours=6), "type": "SYSTEM", "message": "Converted to deal"},
         {"entity_id": jupiter_deal_id, "timestamp": now - datetime.timedelta(hours=2), "type": "MANUAL", "message": "Follow-up prepared"}
-        # ⚠️ No log for latest email (j3)
     ]
     db.logs.insert_many(logs)
+
+    # ---------------- INVITE CODES ----------------
+    invite_codes = [
+        {
+            "_id": ObjectId("69e7ffd8f9ae9b137f248362"),
+            "code": "BLOSTEM-BETA-2026",
+            "used": False,
+            "created_at": datetime.datetime(2026, 4, 21, 0, 0, 0)
+        }
+    ]
+    db.invite_codes.insert_many(invite_codes)
+
+    # ---------------- USERS ----------------
+    users = [
+        {
+            "_id": ObjectId("69e802aea61bb2498a915750"),
+            "email": "test.automation@blostem.ai",
+            "hashed_password": "$2b$12$1e6h.Q5HM2Do0LtOJ3q5JuQy515DfWaCxWiUpw/0xVPh9KPty1mCe",
+            "full_name": "TestUser1",
+            "created_at": datetime.datetime(2026, 4, 21, 23, 5, 18, 910000),
+            "is_active": True
+        }
+    ]
+    db.users.insert_many(users)
 
     print("--- Seeding complete!")
 

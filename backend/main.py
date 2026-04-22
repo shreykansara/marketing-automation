@@ -32,6 +32,35 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Custom CORS middleware to ensure headers are always present
+@app.middleware("http")
+async def custom_cors_middleware(request: Request, call_next):
+    origin = request.headers.get("origin")
+    
+    # Handle preflight (OPTIONS) requests
+    if request.method == "OPTIONS":
+        response = await call_next(request)
+        if origin:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Access-Control-Allow-Methods"] = "*"
+            response.headers["Access-Control-Allow-Headers"] = "*"
+        return response
+
+    response = await call_next(request)
+    
+    if origin:
+        # We allow localhost, vercel, and gmail/extensions
+        allowed_patterns = [
+            "localhost", "127.0.0.1", "vercel.app", 
+            "chrome-extension://", "mail.google.com"
+        ]
+        if any(p in origin for p in allowed_patterns):
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            
+    return response
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -41,8 +70,9 @@ app.add_middleware(
         "https://marketing-automation-xtd2.vercel.app",
         "https://marketing-automation-git-main-shreyhiralkansara-7751s-projects.vercel.app",
         "https://mail.google.com",
+        "http://mail.google.com",
     ],
-    allow_origin_regex=r"chrome-extension://.*",
+    allow_origin_regex=r"(chrome-extension://.*|https://.*\.vercel\.app)",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
