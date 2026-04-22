@@ -45,15 +45,8 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:3000",
-        "https://marketing-automation-xtd2.vercel.app",
-        "https://marketing-automation-git-main-shreyhiralkansara-7751s-projects.vercel.app",
-        "https://mail.google.com",
-    ],
-    allow_origin_regex=r"chrome-extension://.*",
+    # Allow .vercel.app, .github.io, and localhost origins specifically to support credentials
+    allow_origin_regex=r"https://mail\.google\.com|https://.*\.vercel\.app|https://.*\.github\.io|http://localhost(:\d+)?|chrome-extension://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
