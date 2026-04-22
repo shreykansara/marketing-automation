@@ -37,7 +37,7 @@ app.add_middleware(
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "https://marketing-automation-psi.vercel.app",
-        "https://marketing-automation-xtd2.vercel.app",
+        "https://marketing-automation-xtd2.onrender.com",
         "https://mail.google.com",
     ],
     allow_origin_regex=r"https://.*\.vercel\.app|chrome-extension://.*|https://mail\.google\.com",
