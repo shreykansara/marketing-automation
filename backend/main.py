@@ -33,8 +33,14 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    # Allow .vercel.app, .github.io, and localhost origins specifically to support credentials
-    allow_origin_regex=r"https://mail\.google\.com|https://.*\.vercel\.app|https://.*\.github\.io|http://localhost(:\d+)?|chrome-extension://.*",
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "https://marketing-automation-psi.vercel.app",
+        "https://marketing-automation-xtd2.vercel.app",
+        "https://mail.google.com",
+    ],
+    allow_origin_regex=r"https://.*\.vercel\.app|chrome-extension://.*|https://mail\.google\.com",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
