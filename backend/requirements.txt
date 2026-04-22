@@ -13,6 +13,7 @@ sentence-transformers
 gunicorn
 uvicorn[standard]
 passlib[bcrypt]
+bcrypt
 python-jose[cryptography]
 python-multipart
 email-validator
