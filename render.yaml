@@ -1,7 +1,7 @@
 services:
   # 1. Background Worker (Fake Web Service to stay on Free Plan)
   - type: web
-    name: blostem-worker
+    name: flux-worker
     plan: free
     env: python
     buildCommand: "pip install -r backend/requirements.txt"

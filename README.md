@@ -1,8 +1,8 @@
-# 🌸 Blostem Intelligence Platform
+# 💠 Flux Intelligence Platform
 
 > **Transforming Market Noise into Strategic Sales Pipeline.**
 
-Blostem is an end-to-end sales intelligence engine that automates the transition from raw market signals to active business deals. Built with a focus on speed, intelligence, and premium aesthetics, Blostem empowers sales teams to act on high-intent opportunities the moment they surface.
+Flux is an end-to-end sales intelligence engine that automates the transition from raw market signals to active business deals. Built with a focus on speed, intelligence, and premium aesthetics, Flux empowers sales teams to act on high-intent opportunities the moment they surface.
 
 ---
 
@@ -65,12 +65,12 @@ npm run dev
 
 ## 📘 Documentation
 
-For deep-dives into the database schema, API specification, and **Browser Extension** installation, please refer to the [System Documentation](file:///c:/Users/mr_sh/My%20Drive/LPU/Blostem%20Hackathon/documentation.md).
+For deep-dives into the database schema, API specification, and **Browser Extension** installation, please refer to the [System Documentation](file:///c:/Users/mr_sh/My%20Drive/LPU/Flux%20Hackathon/documentation.md).
 
 ---
 
 ## 🎨 Aesthetics & Design
-Blostem features a custom **Dark-Blue Glassmorphic Design System**. Every interaction is smoothed with subtle micro-animations and vibrant accent colors (Success: Emerald, Warning: Amber, Danger: Rose) to ensure a premium, modern experience.
+Flux features a custom **Dark-Blue Glassmorphic Design System**. Every interaction is smoothed with subtle micro-animations and vibrant accent colors (Success: Emerald, Warning: Amber, Danger: Rose) to ensure a premium, modern experience.
 
 ---
-*Built for the Blostem Hackathon.*
+*Built for the Flux Hackathon.*

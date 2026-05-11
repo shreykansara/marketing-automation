@@ -1,12 +1,9 @@
-# Blostem Intelligence Platform - System Documentation
+# Flux Intelligence Platform - System Documentation
 
 ## 1. Overview
-The Blostem platform is an end-to-end sales intelligence engine designed to transform market signals into actionable business deals. It utilizes a centralized company-first architecture and an AI-driven enrichment pipeline to prioritize high-intent opportunities.
+The Flux platform is an end-to-end sales intelligence engine designed to transform market signals into actionable business deals. It utilizes a centralized company-first architecture and an AI-driven enrichment pipeline to prioritize high-intent opportunities.
 
 ---
-
-## 2. Database Architecture (MongoDB)
-All collections reside within the `pipeline_db` (or as configured in `.env`).
 
 ## 2. Database Architecture (MongoDB)
 All collections reside within the `pipeline_db` (or as configured in `.env`).
@@ -140,11 +137,11 @@ The system is built as a high-density, glassmorphic Single Page Application usin
 ---
 
 ## 7. Browser Extension (Email Ingester)
-The Blostem ecosystem includes a Chrome Extension designed for deep Gmail integration.
+The Flux ecosystem includes a Chrome Extension designed for deep Gmail integration.
 
 ### 7.1 Features
-- **Save to Blostem**: Injects a button into the Gmail reading pane to extract and sync email interaction data directly to the master registry.
-- **✨ AI Outreach**: Injects a button into the Gmail Compose window. It detects the recipient, fetches their signal/deal history from the Blostem API, and generates a context-aware outreach draft directly in the textbox.
+- **Save to Flux**: Injects a button into the Gmail reading pane to extract and sync email interaction data directly to the master registry.
+- **✨ AI Outreach**: Injects a button into the Gmail Compose window. It detects the recipient, fetches their signal/deal history from the Flux API, and generates a context-aware outreach draft directly in the textbox.
 
 ### 7.2 Installation
 1. Navigate to the `Extension` directory.

@@ -141,7 +141,7 @@ const EmailPage = () => {
     setTagging(true);
     try {
       let extEmail = selectedEmail.sender;
-      if (selectedEmail.sender.toLowerCase().includes('blostem')) {
+      if (selectedEmail.sender.toLowerCase().includes('flux')) {
         extEmail = selectedEmail.receiver;
       }
 

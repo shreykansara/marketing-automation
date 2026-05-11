@@ -9,8 +9,8 @@ def test_auth():
     # 1. Test Login
     print("\n[1] Testing Login...")
     login_data = {
-        "username": "test.automation@blostem.ai",
-        "password": "blostem2026"
+        "username": "test.automation@flux.ai",
+        "password": "flux2026"
     }
     
     try:
@@ -44,7 +44,7 @@ def test_auth():
             # 3. Test Registration (Invalid/Used Code)
             print("\n[3] Testing Registration with invalid invite code...")
             reg_data = {
-                "email": "another@blostem.ai",
+                "email": "another@flux.ai",
                 "password": "password123",
                 "full_name": "Another User",
                 "invite_code": "INVALID-CODE"

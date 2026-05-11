@@ -108,21 +108,21 @@ def seed():
     emails = [
         {
             "_id": j1,
-            "sender": "blostem-sales@blostem.io",
+            "sender": "flux-sales@flux.ai",
             "receiver": "founder@jupiter.money",
             "subject": "Scaling Jupiter’s Fixed Deposit Infrastructure",
             "body": """Hi Team,
 
 I came across Jupiter’s recent expansion into fixed deposit offerings and your broader push towards strengthening retail banking products.
 
-At Blostem, we provide API-first infrastructure that enables fintech platforms to seamlessly integrate fixed deposit products, automate compliance workflows, and scale banking operations without heavy backend overhead.
+At Flux, we provide API-first infrastructure that enables fintech platforms to seamlessly integrate fixed deposit products, automate compliance workflows, and scale banking operations without heavy backend overhead.
 
 Given your current trajectory, I believe there is a strong alignment in helping Jupiter accelerate its FD rollout while maintaining operational efficiency.
 
 Would you be open to a quick discussion this week?
 
 Best regards,
-Blostem Team
+Flux Team
 """,
             "company_id": jupiter_id,
             "timestamp": now - datetime.timedelta(hours=10),
@@ -131,7 +131,7 @@ Blostem Team
         {
             "_id": j2,
             "sender": "founder@jupiter.money",
-            "receiver": "blostem-sales@blostem.io",
+            "receiver": "flux-sales@flux.ai",
             "subject": "Re: Scaling Jupiter’s Fixed Deposit Infrastructure",
             "body": """Hi,
 
@@ -152,7 +152,7 @@ Jupiter Team
         },
         {
             "_id": j3,
-            "sender": "blostem-sales@blostem.io",
+            "sender": "flux-sales@flux.ai",
             "receiver": "founder@jupiter.money",
             "subject": "Re: Scaling Jupiter’s Fixed Deposit Infrastructure",
             "body": """Hi,
@@ -166,7 +166,7 @@ We can also tailor the solution based on your internal architecture.
 Let me know a suitable time and we can schedule a live demo.
 
 Best,
-Blostem Team
+Flux Team
 """,
             "company_id": jupiter_id,
             "timestamp": now - datetime.timedelta(hours=1),
@@ -176,7 +176,7 @@ Blostem Team
         {
             "_id": f1,
             "sender": "outreach@federalbank.co.in",
-            "receiver": "blostem-sales@blostem.io",
+            "receiver": "flux-sales@flux.ai",
             "subject": "API-driven KYC & Deposit Infrastructure",
             "body": """Hello,
 
@@ -195,21 +195,21 @@ Federal Bank Team
         },
         {
             "_id": f2,
-            "sender": "blostem-sales@blostem.io",
+            "sender": "flux-sales@flux.ai",
             "receiver": "outreach@federalbank.co.in",
             "subject": "Re: API-driven KYC & Deposit Infrastructure",
             "body": """Hi,
 
 Thank you for reaching out.
 
-Blostem provides modular APIs that support KYC orchestration, fixed deposit infrastructure, and seamless banking integrations.
+Flux provides modular APIs that support KYC orchestration, fixed deposit infrastructure, and seamless banking integrations.
 
 Our solutions are designed to work alongside legacy systems while enabling modern digital experiences.
 
 Happy to schedule a demo this week.
 
 Best regards,
-Blostem Team
+Flux Team
 """,
             "company_id": federal_id,
             "timestamp": now - datetime.timedelta(hours=18),
@@ -218,7 +218,7 @@ Blostem Team
         {
             "_id": f3,
             "sender": "outreach@federalbank.co.in",
-            "receiver": "blostem-sales@blostem.io",
+            "receiver": "flux-sales@flux.ai",
             "subject": "Re: API-driven KYC & Deposit Infrastructure",
             "body": """Hi,
 
@@ -282,7 +282,7 @@ Federal Bank
     invite_codes = [
         {
             "_id": ObjectId("69e7ffd8f9ae9b137f248362"),
-            "code": "BLOSTEM-BETA-2026",
+            "code": "FLUX-BETA-2026",
             "used": False,
             "created_at": datetime.datetime(2026, 4, 21, 0, 0, 0)
         }
@@ -293,8 +293,8 @@ Federal Bank
     users = [
         {
             "_id": ObjectId("69e802aea61bb2498a915750"),
-            "email": "test.automation@blostem.ai",
-            "hashed_password": "$2b$12$1e6h.Q5HM2Do0LtOJ3q5JuQy515DfWaCxWiUpw/0xVPh9KPty1mCe",
+            "email": "test.automation@flux.ai",
+            "hashed_password": "$2b$12$OLQrELgn/xLLaWNdpx19VOJKxmAr7qLltyGWWbNtQtSG60mNeyDL.",
             "full_name": "TestUser1",
             "created_at": datetime.datetime(2026, 4, 21, 23, 5, 18, 910000),
             "is_active": True

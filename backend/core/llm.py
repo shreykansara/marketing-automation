@@ -40,8 +40,8 @@ class LLMService:
             }
 
         system_prompt = (
-            "You are a deterministic information extraction engine for Blostem. "
-            "Blostem focuses ONLY on Banks, NBFCs, Fintechs, Neobanks, and Wealthtech platforms in India. "
+            "You are a deterministic information extraction engine for Flux. "
+            "Flux focuses ONLY on Banks, NBFCs, Fintechs, Neobanks, and Wealthtech platforms in India. "
             "Your job is to extract ONLY high-signal intelligence from noisy news text.\n\n"
             "STRICT RULES:\n"
             "1. Extract ONLY companies central to the event (ignore media, PR, irrelevant mentions).\n"
@@ -97,7 +97,7 @@ class LLMService:
             return {"suggested_status": current_status, "reason": "LLM offline"}
 
         system_prompt = (
-            "You are a B2B sales pipeline intelligence engine for Blostem.\n\n"
+            "You are a B2B sales pipeline intelligence engine for Flux.\n\n"
             "Allowed statuses:\n"
             "- open\n- contacted\n- replied\n- closed\n- archived\n\n"
             "DECISION RULES:\n"
@@ -139,7 +139,7 @@ class LLMService:
         logs_text = "\n".join([f"- [{l.get('timestamp')}] {l.get('type')}: {l.get('message')}" for l in recent_logs])
         
         system_prompt = (
-            "You are a deal prioritization engine for Blostem.\n\n"
+            "You are a deal prioritization engine for Flux.\n\n"
             "Score based on BUYING INTENT:\n"
             "80–100: strong intent (demo, follow-ups, product questions)\n"
             "50–79: moderate engagement\n"
@@ -175,8 +175,8 @@ class LLMService:
         logs_text = "\n".join([f"- {l}" for l in recent_logs])
 
         system_prompt = (
-            "You are a top-tier fintech B2B sales copywriter for Blostem.\n\n"
-            "Blostem provides FD distribution infra and Banking APIs.\n\n"
+            "You are a top-tier fintech B2B sales copywriter for Flux.\n\n"
+            "Flux provides FD distribution infra and Banking APIs.\n\n"
             "WRITING RULES:\n"
             "1. Personalize using context\n"
             "2. No fluff or generic openings\n"
@@ -206,15 +206,15 @@ class LLMService:
             return json.loads(response.choices[0].message.content)
         except Exception as e:
             print(f"[ERROR] LLM email generation failed: {e}")
-            return {"subject": "Follow up: Blostem", "body": f"Error generating email: {str(e)}"}
+            return {"subject": "Follow up: Flux", "body": f"Error generating email: {str(e)}"}
 
     def generate_cold_outreach(self, recipient_email: str, company_name: str = "your company") -> Dict[str, str]:
         if not self.client:
             return {"subject": "AI Draft", "body": "LLM offline."}
 
         system_prompt = (
-            "You are a elite B2B sales development representative for Blostem.\n\n"
-            "Blostem is an Indian fintech infrastructure platform providing:\n"
+            "You are a elite B2B sales development representative for Flux.\n\n"
+            "Flux is an Indian fintech infrastructure platform providing:\n"
             "1. FD (Fixed Deposit) distribution infra for apps and platforms.\n"
             "2. Virtual Account and Escrow APIs for automated collections.\n"
             "3. Digital Onboarding and KYC stacks.\n\n"
@@ -228,7 +228,7 @@ class LLMService:
             "Return JSON with 'subject' and 'body'."
         )
 
-        user_prompt = f"Target Recipient: {recipient_email}\nTarget Company: {company_name}\n\nDraft a compelling general outreach email to pitch Blostem's infrastructure."
+        user_prompt = f"Target Recipient: {recipient_email}\nTarget Company: {company_name}\n\nDraft a compelling general outreach email to pitch Flux's infrastructure."
 
         try:
             response = self.client.chat.completions.create(
@@ -243,7 +243,7 @@ class LLMService:
             return json.loads(response.choices[0].message.content)
         except Exception as e:
             print(f"[ERROR] Cold outreach generation failed: {e}")
-            return {"subject": f"Synergy with {company_name}", "body": f"I'm reaching out from Blostem to explore how we can support {company_name} with our banking infrastructure."}
+            return {"subject": f"Synergy with {company_name}", "body": f"I'm reaching out from Flux to explore how we can support {company_name} with our banking infrastructure."}
 
     def generate_email_log_suggestion(self, subject: str, body: str) -> str:
         if not self.client:
