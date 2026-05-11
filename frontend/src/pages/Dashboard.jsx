@@ -92,7 +92,7 @@ const Dashboard = () => {
       <header className="main-header">
         <div>
           <h1 className="header-title outfit">Growth Command</h1>
-          <p className="header-desc">AI-driven sales intelligence overview</p>
+          <p className="header-desc">Flux-driven sales intelligence overview</p>
         </div>
         <div className="last-sync glass">
           <TrendingUp size={16} color="var(--accent-success)" />

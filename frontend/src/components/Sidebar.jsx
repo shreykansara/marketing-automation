@@ -19,8 +19,8 @@ const Sidebar = () => {
     <aside className="sidebar glass">
       <div className="sidebar-header">
         <div className="logo-container">
-          <img src="/logo.png" alt="Blostem Logo" className="logo-img glass" />
-          <span className="logo-text outfit">Blostem AI</span>
+          <img src="/logo.png" alt="Flux Emblem" className="logo-img glass" />
+          <span className="logo-text outfit">Flux AI</span>
         </div>
       </div>
 

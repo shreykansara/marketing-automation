@@ -26,8 +26,8 @@ async def lifespan(app: FastAPI):
     logger.info("Application shutting down...")
 
 app = FastAPI(
-    title="Blostem Intelligence Platform API",
-    description="Refactored Sales Intelligence API for Signals, Leads, and Deals.",
+    title="Flux Intelligence Platform API",
+    description="Dynamic Marketing & Sales Intelligence API for Signals, Leads, and Deals.",
     version="2.1",
     docs_url="/docs",
     redoc_url="/redoc",
@@ -69,4 +69,4 @@ app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
 
 @app.get("/")
 async def root():
-    return {"message": "Blostem Intelligence Platform API (No-Celery Edition) is online.", "version": "2.1"}
+    return {"message": "Flux Intelligence Platform API is online.", "version": "2.1"}

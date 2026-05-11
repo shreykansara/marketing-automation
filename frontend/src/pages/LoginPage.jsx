@@ -15,8 +15,8 @@ const LoginPage = () => {
   const navigate = useNavigate();
 
   const handlePrototypeAccess = () => {
-    setEmail('test.automation@blostem.ai');
-    setPassword('blostem2026');
+    setEmail('test.automation@flux.ai');
+    setPassword('flux2026');
     setIsLogin(true);
     setError('');
   };
@@ -55,10 +55,10 @@ const LoginPage = () => {
       <div className="auth-card glass animate-fade-in">
         <div className="auth-header">
           <div className="logo-box">
-             <img src="/logo.png" alt="Blostem" className="auth-logo" />
+             <img src="/logo.png" alt="Flux AI" className="auth-logo" />
           </div>
-          <h1 className="outfit">{isLogin ? 'Welcome Back' : 'Join Blostem'}</h1>
-          <p className="auth-subtitle">{isLogin ? 'Intelligence-driven sales automation' : 'Invite-only early access'}</p>
+          <h1 className="outfit">{isLogin ? 'Welcome Back' : 'Join Flux AI'}</h1>
+          <p className="auth-subtitle">{isLogin ? 'Dynamic Marketing & Sales Intelligence' : 'Invite-only early access'}</p>
         </div>
 
         {error && (
